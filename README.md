@@ -23,10 +23,11 @@ Implemented:
 - Event dedupe: same kind, within 3 px, inside 0.1 s.
 - Rendering timer runs at 60 fps only while an overlay pulse or laser visual is active.
 - Settings values are clamped to the documented ranges when loaded or saved.
+- Settings window with General, Visual Style, Event Visibility, Tray, and System panes.
+- Settings Preview Pulse and Reset to Defaults.
 
 Not finished yet:
 
-- Full settings window.
 - Richer overlay parity validation.
 - Multi-monitor and mixed-DPI hardening.
 - Installer, signing, and update flow.
@@ -69,8 +70,10 @@ For a clean rebuild, delete `bin\` and run the build script again.
 Manual checks before release:
 
 - Launch from `bin\ClickLight.exe`, open the tray menu, and quit cleanly.
+- Open Settings and check each pane.
 - Test press, release, right-click, drag, and laser pointer mode in common apps.
 - Use **Test Pulse at Pointer** from the tray.
+- Use **Preview Pulse** and **Reset to Defaults** from Settings.
 - Confirm settings persist after quitting and relaunching.
 - Try at least one multi-monitor or mixed-DPI setup before publishing a release build.
 
@@ -109,6 +112,6 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | Global input | `WH_MOUSE_LL` | Matches the requested system-wide, non-blocking capture model. The hook callback converts events and returns immediately. |
 | Overlay rendering | Click-through layered HWND + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing for Phase 1. The overlay timer is stopped whenever there is nothing to draw. |
 | Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
-| Settings UI | Planned WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and can still match the 760x520 layout target in a later phase. |
+| Settings UI | WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and supports the 760x520 layout target without adding another runtime or SDK requirement. |
 | Launch at login | HKCU `Software\Microsoft\Windows\CurrentVersion\Run` | This is the simplest per-user Windows startup mechanism for an unpackaged tray utility. |
 | Updates | Not Configured stub | Installer/update strategy should wait for signing/packaging decisions. |

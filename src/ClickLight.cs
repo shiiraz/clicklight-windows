@@ -39,6 +39,7 @@ namespace ClickLight.Windows
         private readonly MouseHook mouseHook;
         private readonly TrayController trayController;
         private readonly Control dispatcher;
+        private SettingsWindow settingsWindow;
 
         public ClickLightApplicationContext()
         {
@@ -55,6 +56,10 @@ namespace ClickLight.Windows
                 {
                     dispatcher.BeginInvoke(new Action(delegate
                     {
+                        if (settingsWindow != null && settingsWindow.ContainsScreenPoint(clickEvent.X, clickEvent.Y))
+                        {
+                            return;
+                        }
                         overlayCoordinator.Show(clickEvent);
                     }));
                 }
@@ -95,11 +100,16 @@ namespace ClickLight.Windows
 
         private void OpenSettings()
         {
-            MessageBox.Show(
-                "The full Windows settings window is planned for Phase 3. Phase 1 settings are available from the tray menu and are persisted to %AppData%\\ClickLight\\settings.json.",
-                "ClickLight Settings",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            if (settingsWindow == null || settingsWindow.IsDisposed)
+            {
+                settingsWindow = new SettingsWindow(
+                    settingsStore,
+                    launchAtLogin,
+                    delegate { return mouseHook.StatusLabel; },
+                    ShowTestPulse);
+            }
+
+            settingsWindow.ShowSettings();
         }
 
         private void ShowTestPulse()
@@ -119,6 +129,10 @@ namespace ClickLight.Windows
             {
                 mouseHook.Dispose();
                 trayController.Dispose();
+                if (settingsWindow != null)
+                {
+                    settingsWindow.Dispose();
+                }
                 overlayWindow.Dispose();
                 dispatcher.Dispose();
             }
@@ -1171,6 +1185,631 @@ namespace ClickLight.Windows
         private static bool IsKeyDown(int virtualKey)
         {
             return (NativeMethods.GetAsyncKeyState(virtualKey) & unchecked((short)0x8000)) != 0;
+        }
+    }
+
+    internal sealed class SettingsWindow : Form
+    {
+        private readonly SettingsStore settingsStore;
+        private readonly LaunchAtLoginController launchAtLogin;
+        private readonly Func<string> captureStatus;
+        private readonly Action previewPulse;
+        private readonly ListBox paneList;
+        private readonly Panel contentPanel;
+        private bool updatingControls;
+        private bool applyingChange;
+        private int nextY;
+
+        public SettingsWindow(
+            SettingsStore settingsStore,
+            LaunchAtLoginController launchAtLogin,
+            Func<string> captureStatus,
+            Action previewPulse)
+        {
+            this.settingsStore = settingsStore;
+            this.launchAtLogin = launchAtLogin;
+            this.captureStatus = captureStatus;
+            this.previewPulse = previewPulse;
+
+            Text = "ClickLight Settings";
+            Size = new Size(760, 520);
+            MinimumSize = new Size(700, 480);
+            StartPosition = FormStartPosition.CenterScreen;
+            Font = new Font("Segoe UI", 9.0f);
+
+            SplitContainer split = new SplitContainer();
+            split.Dock = DockStyle.Fill;
+            split.FixedPanel = FixedPanel.Panel1;
+            split.SplitterDistance = 190;
+            split.Panel1.BackColor = Color.FromArgb(245, 245, 245);
+
+            paneList = new ListBox();
+            paneList.Dock = DockStyle.Fill;
+            paneList.BorderStyle = BorderStyle.None;
+            paneList.IntegralHeight = false;
+            paneList.Font = new Font("Segoe UI", 10.0f);
+            paneList.Items.Add("General");
+            paneList.Items.Add("Visual Style");
+            paneList.Items.Add("Event Visibility");
+            paneList.Items.Add("Tray");
+            paneList.Items.Add("System");
+            paneList.SelectedIndexChanged += delegate { BuildSelectedPane(); };
+            split.Panel1.Controls.Add(paneList);
+
+            contentPanel = new Panel();
+            contentPanel.Dock = DockStyle.Fill;
+            contentPanel.AutoScroll = true;
+            contentPanel.BackColor = SystemColors.Window;
+            contentPanel.Resize += delegate
+            {
+                if (Visible && !updatingControls)
+                {
+                    BuildSelectedPane();
+                }
+            };
+            split.Panel2.Controls.Add(contentPanel);
+            Controls.Add(split);
+
+            settingsStore.SettingsChanged += SettingsDidChange;
+            paneList.SelectedIndex = 0;
+        }
+
+        public void ShowSettings()
+        {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                WindowState = FormWindowState.Normal;
+            }
+
+            if (!Visible)
+            {
+                Show();
+            }
+
+            BuildSelectedPane();
+            Activate();
+            BringToFront();
+        }
+
+        public bool ContainsScreenPoint(double x, double y)
+        {
+            return Visible && Bounds.Contains(new Point((int)Math.Round(x), (int)Math.Round(y)));
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+
+            base.OnFormClosing(e);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                settingsStore.SettingsChanged -= SettingsDidChange;
+            }
+            base.Dispose(disposing);
+        }
+
+        private void SettingsDidChange(object sender, EventArgs e)
+        {
+            if (applyingChange) return;
+
+            if (IsHandleCreated && InvokeRequired)
+            {
+                BeginInvoke(new Action(BuildSelectedPane));
+            }
+            else
+            {
+                BuildSelectedPane();
+            }
+        }
+
+        private void BuildSelectedPane()
+        {
+            if (paneList.SelectedIndex < 0) return;
+
+            updatingControls = true;
+            contentPanel.SuspendLayout();
+            contentPanel.Controls.Clear();
+            nextY = 20;
+
+            switch (paneList.SelectedIndex)
+            {
+                case 0:
+                    AddHeader("General", "Toggle ClickLight and restore defaults.");
+                    BuildGeneralPane();
+                    break;
+                case 1:
+                    AddHeader("Visual Style", "Size, intensity, duration, and color of click pulses.");
+                    BuildStylePane();
+                    break;
+                case 2:
+                    AddHeader("Event Visibility", "Choose which mouse interactions trigger a pulse.");
+                    BuildEventsPane();
+                    break;
+                case 3:
+                    AddHeader("Tray", "Adjust the notification-area status item appearance.");
+                    BuildTrayPane();
+                    break;
+                case 4:
+                    AddHeader("System", "Startup and Windows capture status.");
+                    BuildSystemPane();
+                    break;
+            }
+
+            contentPanel.ResumeLayout();
+            updatingControls = false;
+        }
+
+        private void BuildGeneralPane()
+        {
+            ClickSettings settings = settingsStore.Settings;
+
+            Panel enableCard = AddCard(84);
+            CheckBox enabled = CreateCheckBox(settings.isEnabled);
+            enabled.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.isEnabled = enabled.Checked; }, false);
+            };
+            AddRow(enableCard, 18, "Enable ClickLight", "Show pulse highlights on every click.", enabled);
+
+            Panel resetCard = AddCard(92);
+            Button reset = new Button();
+            reset.Text = "Reset";
+            reset.Width = 92;
+            reset.Height = 30;
+            reset.Click += delegate
+            {
+                DialogResult result = MessageBox.Show(
+                    this,
+                    "Restore size, intensity, duration, color, and visibility toggles to their defaults?",
+                    "Reset ClickLight settings?",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning);
+                if (result == DialogResult.OK)
+                {
+                    try
+                    {
+                        applyingChange = true;
+                        settingsStore.ResetToDefaults();
+                    }
+                    finally
+                    {
+                        applyingChange = false;
+                    }
+                    BuildSelectedPane();
+                }
+            };
+            AddRow(resetCard, 18, "Reset to Defaults", "Restore size, intensity, duration, color, and toggles.", reset);
+        }
+
+        private void BuildStylePane()
+        {
+            ClickSettings settings = settingsStore.Settings;
+
+            Panel previewCard = AddCard(82);
+            Button preview = new Button();
+            preview.Text = "Preview Pulse";
+            preview.Width = 118;
+            preview.Height = 30;
+            preview.Click += delegate { previewPulse(); };
+            AddRow(previewCard, 18, "Preview", "Show the current pulse style at the pointer.", preview);
+
+            Panel sizeCard = AddCard(146);
+            AddPresetRow(sizeCard, 44, "Size Preset", ClickSettingOptions.SizePresets, settings.size, delegate(double value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.size = value; }, true);
+            });
+            AddSliderRow(sizeCard, 86, "Size", 16, 240, (int)Math.Round(settings.size), "px", delegate(int value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.size = value; }, false);
+            });
+
+            Panel intensityCard = AddCard(146);
+            AddPresetRow(intensityCard, 44, "Intensity Preset", ClickSettingOptions.IntensityPresets, settings.intensity, delegate(double value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.intensity = value; }, true);
+            });
+            AddScaledSliderRow(intensityCard, 86, "Intensity", 5, 200, (int)Math.Round(settings.intensity * 100.0), 100.0, "", delegate(double value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.intensity = value; }, false);
+            });
+
+            Panel durationCard = AddCard(146);
+            AddPresetRow(durationCard, 44, "Duration Preset", ClickSettingOptions.DurationPresets, settings.duration, delegate(double value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.duration = value; }, true);
+            });
+            AddScaledSliderRow(durationCard, 86, "Duration", 10, 200, (int)Math.Round(settings.duration * 100.0), 100.0, " s", delegate(double value)
+            {
+                ApplySetting(delegate(ClickSettings s) { s.duration = value; }, false);
+            });
+
+            Panel colorCard = AddCard(132);
+            ComboBox colorCombo = new ComboBox();
+            colorCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+            colorCombo.Width = 150;
+            for (int i = 0; i < ClickColorPreset.All.Length; i++)
+            {
+                string preset = ClickColorPreset.All[i];
+                colorCombo.Items.Add(new ColorChoice(preset));
+                if (preset == settings.colorPreset)
+                {
+                    colorCombo.SelectedIndex = i;
+                }
+            }
+            colorCombo.SelectedIndexChanged += delegate
+            {
+                if (updatingControls || colorCombo.SelectedItem == null) return;
+                ColorChoice choice = (ColorChoice)colorCombo.SelectedItem;
+                ApplySetting(delegate(ClickSettings s) { s.colorPreset = choice.Preset; }, true);
+            };
+            AddRow(colorCard, 18, "Color", "Tint applied to every pulse.", colorCombo);
+
+            Button customColor = new Button();
+            customColor.Text = "Pick Color";
+            customColor.Width = 100;
+            customColor.Height = 30;
+            customColor.Click += delegate { PickCustomColor(); };
+            AddRow(colorCard, 72, "Custom Color", "Picking a color switches to Custom.", customColor);
+        }
+
+        private void BuildEventsPane()
+        {
+            ClickSettings settings = settingsStore.Settings;
+            Panel card = AddCard(326);
+
+            CheckBox laser = CreateCheckBox(settings.showLaserPointer);
+            laser.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showLaserPointer = laser.Checked; }, true);
+            };
+            AddRow(card, 18, "Laser Pointer Mode", "Show a fading red pointer and draw temporary strokes while dragging.", laser);
+
+            CheckBox press = CreateCheckBox(settings.showPress);
+            press.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showPress = press.Checked; }, false);
+            };
+            AddRow(card, 76, "Show Press", "Highlight when the mouse button goes down.", press);
+
+            CheckBox release = CreateCheckBox(settings.showRelease);
+            release.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showRelease = release.Checked; }, false);
+            };
+            AddRow(card, 134, "Show Release", "Highlight when the mouse button releases.", release);
+
+            CheckBox right = CreateCheckBox(settings.showRightClick);
+            right.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showRightClick = right.Checked; }, false);
+            };
+            AddRow(card, 192, "Show Right Click", "Highlight secondary-button clicks.", right);
+
+            CheckBox drag = CreateCheckBox(settings.showDrag);
+            drag.Enabled = !settings.showLaserPointer;
+            drag.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showDrag = drag.Checked; }, false);
+            };
+            AddRow(card, 250, "Show Drag", settings.showLaserPointer ? "Laser Pointer Mode replaces the normal drag trail." : "Trail pointer movement while dragging.", drag);
+        }
+
+        private void BuildTrayPane()
+        {
+            ClickSettings settings = settingsStore.Settings;
+            Panel card = AddCard(84);
+            CheckBox showTrayLabel = CreateCheckBox(settings.showMenuBarText);
+            showTrayLabel.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                ApplySetting(delegate(ClickSettings s) { s.showMenuBarText = showTrayLabel.Checked; }, false);
+            };
+            AddRow(card, 18, "Show Tray Label", "Use a longer tooltip/status label for the tray icon.", showTrayLabel);
+        }
+
+        private void BuildSystemPane()
+        {
+            Panel startupCard = AddCard(84);
+            CheckBox launch = CreateCheckBox(launchAtLogin.IsEnabled);
+            launch.CheckedChanged += delegate
+            {
+                if (updatingControls) return;
+                launchAtLogin.SetEnabled(launch.Checked);
+                BuildSelectedPane();
+            };
+            AddRow(startupCard, 18, "Launch at Login", "Open ClickLight automatically after signing in.", launch);
+
+            Panel captureCard = AddCard(156);
+            Label status = new Label();
+            status.Text = captureStatus();
+            status.AutoSize = false;
+            status.TextAlign = ContentAlignment.MiddleRight;
+            status.Width = 170;
+            status.Height = 26;
+            AddRow(captureCard, 18, "Click Capture", "Current global mouse hook status.", status);
+
+            Label note = new Label();
+            note.Text = "Windows may block non-elevated hooks from seeing clicks in elevated apps. Exclusive fullscreen apps may also hide overlays.";
+            note.Location = new Point(16, 82);
+            note.Width = captureCard.Width - 32;
+            note.Height = 44;
+            note.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+            note.ForeColor = SystemColors.GrayText;
+            captureCard.Controls.Add(note);
+
+            Panel updatesCard = AddCard(76);
+            Label updates = new Label();
+            updates.Text = "Not Configured";
+            updates.AutoSize = false;
+            updates.TextAlign = ContentAlignment.MiddleRight;
+            updates.Width = 170;
+            updates.Height = 26;
+            AddRow(updatesCard, 18, "Updates", "Installer and update strategy are not configured yet.", updates);
+        }
+
+        private void AddHeader(string title, string subtitle)
+        {
+            Label titleLabel = new Label();
+            titleLabel.Text = title;
+            titleLabel.Font = new Font("Segoe UI", 18.0f, FontStyle.Bold);
+            titleLabel.Location = new Point(24, nextY);
+            titleLabel.AutoSize = true;
+            contentPanel.Controls.Add(titleLabel);
+            nextY += 34;
+
+            Label subtitleLabel = new Label();
+            subtitleLabel.Text = subtitle;
+            subtitleLabel.ForeColor = SystemColors.GrayText;
+            subtitleLabel.Location = new Point(26, nextY);
+            subtitleLabel.Width = ContentWidth();
+            subtitleLabel.Height = 22;
+            subtitleLabel.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+            contentPanel.Controls.Add(subtitleLabel);
+            nextY += 42;
+        }
+
+        private Panel AddCard(int height)
+        {
+            Panel card = new Panel();
+            card.BorderStyle = BorderStyle.FixedSingle;
+            card.BackColor = Color.FromArgb(250, 250, 250);
+            card.Location = new Point(24, nextY);
+            card.Width = ContentWidth();
+            card.Height = height;
+            card.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+            contentPanel.Controls.Add(card);
+            nextY += height + 14;
+            return card;
+        }
+
+        private void AddRow(Panel card, int y, string title, string subtitle, Control trailing)
+        {
+            Label titleLabel = new Label();
+            titleLabel.Text = title;
+            titleLabel.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
+            titleLabel.Location = new Point(16, y);
+            titleLabel.AutoSize = true;
+            card.Controls.Add(titleLabel);
+
+            Label subtitleLabel = new Label();
+            subtitleLabel.Text = subtitle;
+            subtitleLabel.ForeColor = SystemColors.GrayText;
+            subtitleLabel.Location = new Point(16, y + 22);
+            subtitleLabel.Width = Math.Max(200, card.Width - trailing.Width - 58);
+            subtitleLabel.Height = 34;
+            subtitleLabel.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+            card.Controls.Add(subtitleLabel);
+
+            trailing.Location = new Point(card.Width - trailing.Width - 18, y + 8);
+            trailing.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            card.Controls.Add(trailing);
+        }
+
+        private CheckBox CreateCheckBox(bool isChecked)
+        {
+            CheckBox checkBox = new CheckBox();
+            checkBox.Checked = isChecked;
+            checkBox.AutoSize = true;
+            checkBox.Width = 22;
+            checkBox.Height = 22;
+            return checkBox;
+        }
+
+        private void AddPresetRow(Panel card, int y, string title, ClickNumericPreset[] presets, double selected, Action<double> select)
+        {
+            ComboBox combo = new ComboBox();
+            combo.DropDownStyle = ComboBoxStyle.DropDownList;
+            combo.Width = 150;
+            int selectedIndex = -1;
+            for (int i = 0; i < presets.Length; i++)
+            {
+                combo.Items.Add(new PresetChoice(presets[i].Title, presets[i].Value));
+                if (Math.Abs(presets[i].Value - selected) < 0.01)
+                {
+                    selectedIndex = i;
+                }
+            }
+            if (selectedIndex >= 0)
+            {
+                combo.SelectedIndex = selectedIndex;
+            }
+            else
+            {
+                combo.Items.Add(new PresetChoice("Custom", selected));
+                combo.SelectedIndex = combo.Items.Count - 1;
+            }
+
+            combo.SelectedIndexChanged += delegate
+            {
+                if (updatingControls || combo.SelectedItem == null) return;
+                PresetChoice choice = (PresetChoice)combo.SelectedItem;
+                select(choice.Value);
+            };
+
+            AddRow(card, y, title, "Quick presets stay synced with the tray menu.", combo);
+        }
+
+        private void AddSliderRow(Panel card, int y, string title, int minimum, int maximum, int value, string suffix, Action<int> select)
+        {
+            Panel trailing = CreateSliderPanel(minimum, maximum, value, suffix, delegate(int trackValue)
+            {
+                select(trackValue);
+            });
+            AddRow(card, y, title, minimum.ToString() + " to " + maximum.ToString(), trailing);
+        }
+
+        private void AddScaledSliderRow(Panel card, int y, string title, int minimum, int maximum, int value, double scale, string suffix, Action<double> select)
+        {
+            Panel trailing = CreateSliderPanel(minimum, maximum, value, suffix, delegate(int trackValue)
+            {
+                select((double)trackValue / scale);
+            });
+            AddRow(card, y, title, ((double)minimum / scale).ToString("0.##") + " to " + ((double)maximum / scale).ToString("0.##"), trailing);
+        }
+
+        private Panel CreateSliderPanel(int minimum, int maximum, int value, string suffix, Action<int> select)
+        {
+            Panel panel = new Panel();
+            panel.Width = 322;
+            panel.Height = 42;
+
+            TrackBar track = new TrackBar();
+            track.Minimum = minimum;
+            track.Maximum = maximum;
+            track.Value = Math.Max(minimum, Math.Min(maximum, value));
+            track.TickStyle = TickStyle.None;
+            track.Width = 230;
+            track.Location = new Point(0, 4);
+            panel.Controls.Add(track);
+
+            Label readout = new Label();
+            readout.Text = FormatSliderReadout(track.Value, suffix);
+            readout.Location = new Point(236, 10);
+            readout.Width = 82;
+            readout.Height = 22;
+            readout.TextAlign = ContentAlignment.MiddleRight;
+            panel.Controls.Add(readout);
+
+            track.ValueChanged += delegate
+            {
+                if (updatingControls) return;
+                readout.Text = FormatSliderReadout(track.Value, suffix);
+                select(track.Value);
+            };
+
+            return panel;
+        }
+
+        private static string FormatSliderReadout(int value, string suffix)
+        {
+            if (suffix == " s")
+            {
+                return ((double)value / 100.0).ToString("0.00") + suffix;
+            }
+            if (String.IsNullOrEmpty(suffix))
+            {
+                return ((double)value / 100.0).ToString("0.00");
+            }
+            return value.ToString() + " " + suffix;
+        }
+
+        private void PickCustomColor()
+        {
+            ClickSettings settings = settingsStore.Settings;
+            using (ColorDialog dialog = new ColorDialog())
+            {
+                dialog.FullOpen = true;
+                dialog.Color = Color.FromArgb(
+                    UnitToByte(settings.customColorRed),
+                    UnitToByte(settings.customColorGreen),
+                    UnitToByte(settings.customColorBlue));
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    Color color = dialog.Color;
+                    ApplySetting(delegate(ClickSettings s)
+                    {
+                        s.customColorRed = (double)color.R / 255.0;
+                        s.customColorGreen = (double)color.G / 255.0;
+                        s.customColorBlue = (double)color.B / 255.0;
+                        s.colorPreset = "custom";
+                    }, true);
+                }
+            }
+        }
+
+        private void ApplySetting(Action<ClickSettings> mutate, bool rebuild)
+        {
+            try
+            {
+                applyingChange = true;
+                settingsStore.Update(mutate);
+            }
+            finally
+            {
+                applyingChange = false;
+            }
+            if (rebuild)
+            {
+                BuildSelectedPane();
+            }
+        }
+
+        private int ContentWidth()
+        {
+            return Math.Max(420, contentPanel.ClientSize.Width - 48);
+        }
+
+        private static int UnitToByte(double value)
+        {
+            if (Double.IsNaN(value) || Double.IsInfinity(value)) value = 0.0;
+            return (int)Math.Round(Math.Max(0.0, Math.Min(1.0, value)) * 255.0);
+        }
+
+        private sealed class PresetChoice
+        {
+            public readonly string Title;
+            public readonly double Value;
+
+            public PresetChoice(string title, double value)
+            {
+                Title = title;
+                Value = value;
+            }
+
+            public override string ToString()
+            {
+                return Title;
+            }
+        }
+
+        private sealed class ColorChoice
+        {
+            public readonly string Preset;
+
+            public ColorChoice(string preset)
+            {
+                Preset = preset;
+            }
+
+            public override string ToString()
+            {
+                return ClickColorPreset.Title(Preset);
+            }
         }
     }
 
