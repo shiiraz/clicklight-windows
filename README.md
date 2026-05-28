@@ -19,9 +19,10 @@ Implemented:
 - Notification-area tray icon with the fixed menu order.
 - Enabled toggle, tray label tooltip toggle, launch-at-login toggle, preset/color menu persistence, test pulse, and clean quit.
 - Global low-level mouse capture using `WH_MOUSE_LL`.
-- Left click pulses at the pointer, with the original easing, default colors, size, intensity, and duration math ported to GDI+.
+- Press, release, right-click, drag, and laser pointer visuals using the original easing, default colors, size, intensity, and duration math ported to GDI+.
 - Event dedupe: same kind, within 3 px, inside 0.1 s.
 - Rendering timer runs at 60 fps only while an overlay pulse or laser visual is active.
+- Settings values are clamped to the documented ranges when loaded or saved.
 
 Not finished yet:
 
@@ -65,6 +66,14 @@ ClickLight runs from the notification area. Use **Quit ClickLight** from the tra
 
 For a clean rebuild, delete `bin\` and run the build script again.
 
+Manual checks before release:
+
+- Launch from `bin\ClickLight.exe`, open the tray menu, and quit cleanly.
+- Test press, release, right-click, drag, and laser pointer mode in common apps.
+- Use **Test Pulse at Pointer** from the tray.
+- Confirm settings persist after quitting and relaunching.
+- Try at least one multi-monitor or mixed-DPI setup before publishing a release build.
+
 ## Scope
 
 ClickLight is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
@@ -84,6 +93,7 @@ The JSON keys are intentionally stable: `isEnabled`, `showPress`, `showRelease`,
 - Clicks in elevated processes may not be visible to a non-elevated ClickLight process because of UIPI.
 - Exclusive fullscreen apps may cover or bypass normal topmost overlays.
 - Mixed-DPI and unusual multi-monitor arrangements need explicit testing and hardening.
+- Smart App Control may block local builds because `bin\ClickLight.exe` is currently unsigned and has no reputation. There is no per-app bypass for Smart App Control; proper release builds should be signed with a trusted code-signing certificate.
 
 ## Maintenance
 

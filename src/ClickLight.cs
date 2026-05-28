@@ -227,13 +227,19 @@ namespace ClickLight.Windows
                 colorPreset = "default";
             }
 
-            if (Double.IsNaN(size) || Double.IsInfinity(size) || size <= 0.0) size = 64.0;
-            if (Double.IsNaN(intensity) || Double.IsInfinity(intensity) || intensity <= 0.0) intensity = 0.7;
-            if (Double.IsNaN(duration) || Double.IsInfinity(duration) || duration <= 0.0) duration = 0.48;
+            size = ClampRange(size, 16.0, 240.0, 64.0);
+            intensity = ClampRange(intensity, 0.05, 2.0, 0.7);
+            duration = ClampRange(duration, 0.1, 2.0, 0.48);
 
             customColorRed = Clamp01(customColorRed);
             customColorGreen = Clamp01(customColorGreen);
             customColorBlue = Clamp01(customColorBlue);
+        }
+
+        private static double ClampRange(double value, double min, double max, double fallback)
+        {
+            if (Double.IsNaN(value) || Double.IsInfinity(value)) return fallback;
+            return Math.Max(min, Math.Min(max, value));
         }
 
         private static double Clamp01(double value)
@@ -1064,8 +1070,7 @@ namespace ClickLight.Windows
         private readonly Action<ClickEvent> onEvent;
         private IntPtr hookHandle;
         private bool laserPointerEnabled;
-        private bool leftButtonDown;
-        private bool rightButtonDown;
+        private int lastHookError;
 
         public MouseHook(Action<ClickEvent> onEvent)
         {
@@ -1075,7 +1080,11 @@ namespace ClickLight.Windows
 
         public string StatusLabel
         {
-            get { return hookHandle != IntPtr.Zero ? "Hook active" : "Stopped"; }
+            get
+            {
+                if (hookHandle != IntPtr.Zero) return "Hook active";
+                return lastHookError != 0 ? "Hook failed" : "Stopped";
+            }
         }
 
         public void Start(bool laserPointerEnabled)
@@ -1085,6 +1094,7 @@ namespace ClickLight.Windows
 
             IntPtr module = NativeMethods.GetModuleHandle(null);
             hookHandle = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, hookProc, module, 0);
+            lastHookError = hookHandle == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
         }
 
         public void Stop()
@@ -1094,8 +1104,6 @@ namespace ClickLight.Windows
                 NativeMethods.UnhookWindowsHookEx(hookHandle);
                 hookHandle = IntPtr.Zero;
             }
-            leftButtonDown = false;
-            rightButtonDown = false;
         }
 
         public void Dispose()
@@ -1123,27 +1131,23 @@ namespace ClickLight.Windows
         {
             if (message == NativeMethods.WM_LBUTTONDOWN)
             {
-                leftButtonDown = true;
                 return ClickKind.LeftDown;
             }
             if (message == NativeMethods.WM_LBUTTONUP)
             {
-                leftButtonDown = false;
                 return ClickKind.LeftUp;
             }
             if (message == NativeMethods.WM_RBUTTONDOWN)
             {
-                rightButtonDown = true;
                 return ClickKind.RightDown;
             }
             if (message == NativeMethods.WM_RBUTTONUP)
             {
-                rightButtonDown = false;
                 return ClickKind.RightUp;
             }
             if (message == NativeMethods.WM_MOUSEMOVE)
             {
-                if (leftButtonDown || rightButtonDown)
+                if (IsAnyMouseButtonDown())
                 {
                     return ClickKind.Drag;
                 }
@@ -1153,6 +1157,20 @@ namespace ClickLight.Windows
                 }
             }
             return null;
+        }
+
+        private static bool IsAnyMouseButtonDown()
+        {
+            return IsKeyDown(NativeMethods.VK_LBUTTON) ||
+                IsKeyDown(NativeMethods.VK_RBUTTON) ||
+                IsKeyDown(NativeMethods.VK_MBUTTON) ||
+                IsKeyDown(NativeMethods.VK_XBUTTON1) ||
+                IsKeyDown(NativeMethods.VK_XBUTTON2);
+        }
+
+        private static bool IsKeyDown(int virtualKey)
+        {
+            return (NativeMethods.GetAsyncKeyState(virtualKey) & unchecked((short)0x8000)) != 0;
         }
     }
 
@@ -1438,6 +1456,12 @@ namespace ClickLight.Windows
         public const int WM_RBUTTONDOWN = 0x0204;
         public const int WM_RBUTTONUP = 0x0205;
 
+        public const int VK_LBUTTON = 0x01;
+        public const int VK_RBUTTON = 0x02;
+        public const int VK_MBUTTON = 0x04;
+        public const int VK_XBUTTON1 = 0x05;
+        public const int VK_XBUTTON2 = 0x06;
+
         public const int WS_EX_LAYERED = 0x00080000;
         public const int WS_EX_TRANSPARENT = 0x00000020;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -1505,6 +1529,9 @@ namespace ClickLight.Windows
         [DllImport("user32.dll")]
         public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -1545,6 +1572,10 @@ namespace ClickLight.Windows
             ref BLENDFUNCTION pblend,
             int dwFlags);
 
+        [DllImport("user32.dll", EntryPoint = "SetProcessDpiAwarenessContext")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
         [DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
 
@@ -1554,6 +1585,17 @@ namespace ClickLight.Windows
 
         public static void SetProcessDPIAwareSafe()
         {
+            try
+            {
+                if (SetProcessDpiAwarenessContext(new IntPtr(-4)))
+                {
+                    return;
+                }
+            }
+            catch
+            {
+            }
+
             try
             {
                 SetProcessDPIAware();
