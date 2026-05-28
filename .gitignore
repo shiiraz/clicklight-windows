@@ -1,8 +1,24 @@
-.DS_Store
-.build/
-ClickLight.app/
-ClickLight.zip
-*.xcuserdata/
-DerivedData/
-.vscode/
+# Build output
+bin/
+obj/
 dist/
+artifacts/
+
+# IDE/editor state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs/temp files
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

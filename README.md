@@ -1,87 +1,104 @@
 # ClickLight
 
-A small macOS menu bar app that highlights your clicks during live demos, screen sharing, UX reviews, and other moments where people need to follow what you are doing.
+Native Windows 11 tray utility that highlights mouse clicks during live demos, screen sharing, UX reviews, and recordings.
 
-Screen recorders like Screen Studio and CleanShot can add click effects after the fact. ClickLight is for the live moment itself, when you need the audience to see exactly when you clicked without interrupting your flow.
+ClickLight is intentionally small: it lives in the notification area, draws click highlights only when needed, and avoids a permanent render loop while idle.
 
-## Demo
+This is an early Windows port. It was built from the behavior and visual timing of the original ClickLight app, then cleaned up into a Windows-first repository. Maintenance is best-effort.
 
-![ClickLight showing click highlights from the macOS menu bar](docs/assets/ClickLight.gif)
+## Origin and Credits
 
-## Use Cases
+This Windows port is derived from the original macOS ClickLight project by Aurora Scharff: https://github.com/aurorascharff/ClickLight
 
-- Live product demos where viewers need to follow exactly what you clicked
-- UX reviews where the delay between click and response matters (the original motivation for ClickLight)
-- Bug reports where a recording should show both the action and the app behavior
-- Tutorials, workshops, and conference talks where pointer movement alone is easy to miss
-- Pairing with a larger macOS pointer so clicks stay visible in live demos and recordings
+The original MIT license notice is retained in `LICENSE`.
 
-## Install
+## Status
 
-With Homebrew:
+Implemented:
 
-```bash
-brew tap aurorascharff/clicklight https://github.com/aurorascharff/ClickLight
-brew install --cask aurorascharff/clicklight/clicklight
+- Notification-area tray icon with the fixed menu order.
+- Enabled toggle, tray label tooltip toggle, launch-at-login toggle, preset/color menu persistence, test pulse, and clean quit.
+- Global low-level mouse capture using `WH_MOUSE_LL`.
+- Left click pulses at the pointer, with the original easing, default colors, size, intensity, and duration math ported to GDI+.
+- Event dedupe: same kind, within 3 px, inside 0.1 s.
+- Rendering timer runs at 60 fps only while an overlay pulse or laser visual is active.
+
+Not finished yet:
+
+- Full settings window.
+- Richer overlay parity validation.
+- Multi-monitor and mixed-DPI hardening.
+- Installer, signing, and update flow.
+
+## Build
+
+The current build uses the .NET Framework compiler bridge built into Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-Homebrew installs are updated with `brew upgrade --cask clicklight`.
+The executable is written to:
 
-Prefer not to use Homebrew? Download `ClickLight.zip` from [GitHub Releases](https://github.com/aurorascharff/ClickLight/releases).
-
-> **Manual install**
-> If you want to build ClickLight from source or iterate on it locally, use [Manual Install](docs/MANUAL_INSTALL.md).
-
-## Features
-
-- Click highlights across macOS apps
-- Separate visuals for press, release, right-click, and drag
-- Optional laser pointer mode with fading freehand strokes while dragging
-- Dedicated settings window with sliders + presets for size, duration, intensity, and color
-- Custom color picker in Settings
-- Menu-bar quick presets for size, duration, intensity, and color
-- Optional compact menu-bar icon
-- Test pulse for verifying overlay behavior
-- Native Swift/AppKit app
-- No Xcode project required
-
-## Permissions
-
-ClickLight requires Accessibility permission to detect clicks outside its own menu-bar app. You will be prompted on first launch, or grant it manually in:
-
-**System Settings -> Privacy & Security -> Accessibility**
-
-After enabling permission, quit ClickLight from the menu bar and reopen it.
-
-Tip: for recorded demos or presentations, pair ClickLight with a larger macOS pointer in **System Settings -> Accessibility -> Display -> Pointer**.
-
-## Modify It
-
-ClickLight is personal software: one small presentation annoyance, fixed directly. The project is intentionally small so you or an agent can change it without much ceremony.
-
-Start with [Local Development](docs/LOCAL_DEVELOPMENT.md).
-
-## Releasing
-
-Releases are signed, notarized, published to GitHub Releases, installable with Homebrew, and prepared for Sparkle updates.
-
-See [Releasing](docs/RELEASING.md). What's new is tracked in [GitHub Releases](https://github.com/aurorascharff/ClickLight/releases).
-
-## Uninstall
-
-```bash
-brew uninstall --cask clicklight
+```text
+bin\ClickLight.exe
 ```
 
-To remove ClickLight preferences too:
+Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button.
 
-```bash
-brew uninstall --cask --zap clicklight
+## Local Development
+
+Prerequisites:
+
+- Windows 11.
+- Windows PowerShell.
+- .NET Framework available on the machine. No separate SDK is required for the current build script.
+
+Build and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+.\bin\ClickLight.exe
 ```
 
-> **Manual uninstall**
-> If you installed ClickLight manually from source, use [Remove Manual Install](docs/MANUAL_INSTALL.md#remove-manual-install).
+ClickLight runs from the notification area. Use **Quit ClickLight** from the tray menu before rebuilding; otherwise `bin\ClickLight.exe` may be locked by the running process.
 
-## License
+For a clean rebuild, delete `bin\` and run the build script again.
 
-MIT. See [LICENSE](LICENSE).
+## Scope
+
+ClickLight is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
+
+## Settings
+
+Settings are persisted as JSON at:
+
+```text
+%AppData%\ClickLight\settings.json
+```
+
+The JSON keys are intentionally stable: `isEnabled`, `showPress`, `showRelease`, `showRightClick`, `showDrag`, `showLaserPointer`, `showMenuBarText`, `size`, `intensity`, `duration`, `colorPreset`, `customColorRed`, `customColorGreen`, and `customColorBlue`.
+
+## Known Windows limitations
+
+- Clicks in elevated processes may not be visible to a non-elevated ClickLight process because of UIPI.
+- Exclusive fullscreen apps may cover or bypass normal topmost overlays.
+- Mixed-DPI and unusual multi-monitor arrangements need explicit testing and hardening.
+
+## Maintenance
+
+This Windows port is maintained best-effort. Some implementation work is agent-assisted, with changes reviewed before release.
+
+## Architecture decisions
+
+| Layer | Choice | Why |
+| --- | --- | --- |
+| Language/runtime | C# on built-in .NET Framework via PowerShell `Add-Type` | This keeps the app native and buildable on a plain Windows setup without installing a separate SDK. |
+| UI loop | WinForms `ApplicationContext` | It gives a native Windows message loop, tray support, timers, and Win32 interop with very little scaffolding. |
+| Tray | `System.Windows.Forms.NotifyIcon` | It maps directly to the Windows notification area and avoids extra dependencies. |
+| Global input | `WH_MOUSE_LL` | Matches the requested system-wide, non-blocking capture model. The hook callback converts events and returns immediately. |
+| Overlay rendering | Click-through layered HWND + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing for Phase 1. The overlay timer is stopped whenever there is nothing to draw. |
+| Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
+| Settings UI | Planned WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and can still match the 760x520 layout target in a later phase. |
+| Launch at login | HKCU `Software\Microsoft\Windows\CurrentVersion\Run` | This is the simplest per-user Windows startup mechanism for an unpackaged tray utility. |
+| Updates | Not Configured stub | Installer/update strategy should wait for signing/packaging decisions. |
