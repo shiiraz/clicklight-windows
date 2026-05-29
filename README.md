@@ -25,11 +25,12 @@ Implemented:
 - Settings values are clamped to the documented ranges when loaded or saved.
 - Settings window with General, Visual Style, Event Visibility, Tray, and System panes.
 - Settings Preview Pulse and Reset to Defaults.
+- Per-monitor overlay windows with display-change rebuilds.
 
 Not finished yet:
 
 - Richer overlay parity validation.
-- Multi-monitor and mixed-DPI hardening.
+- Mixed-DPI validation on real hardware.
 - Installer, signing, and update flow.
 
 ## Build
@@ -66,6 +67,17 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ClickLight runs from the notification area. Use **Quit ClickLight** from the tray menu before rebuilding; otherwise `bin\ClickLight.exe` may be locked by the running process.
 
 For a clean rebuild, delete `bin\` and run the build script again.
+
+Source layout:
+
+- `src/App` app wiring.
+- `src/Core` event types and timing.
+- `src/Input` global mouse capture.
+- `src/Overlay` click-through overlay windows and drawing.
+- `src/Settings` settings model, presets, colors, and persistence.
+- `src/UI` tray icon/menu and settings window.
+- `src/Interop` Win32 declarations.
+- `src/System` launch-at-login integration.
 
 Manual checks before release:
 
@@ -110,7 +122,7 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | UI loop | WinForms `ApplicationContext` | It gives a native Windows message loop, tray support, timers, and Win32 interop with very little scaffolding. |
 | Tray | `System.Windows.Forms.NotifyIcon` | It maps directly to the Windows notification area and avoids extra dependencies. |
 | Global input | `WH_MOUSE_LL` | Matches the requested system-wide, non-blocking capture model. The hook callback converts events and returns immediately. |
-| Overlay rendering | Click-through layered HWND + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing for Phase 1. The overlay timer is stopped whenever there is nothing to draw. |
+| Overlay rendering | Per-monitor click-through layered HWNDs + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing. The overlay timer is stopped whenever there is nothing to draw. |
 | Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
 | Settings UI | WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and supports the 760x520 layout target without adding another runtime or SDK requirement. |
 | Launch at login | HKCU `Software\Microsoft\Windows\CurrentVersion\Run` | This is the simplest per-user Windows startup mechanism for an unpackaged tray utility. |

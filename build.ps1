@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Source = Join-Path $Root "src\ClickLight.cs"
+$SourceRoot = Join-Path $Root "src"
+$Sources = Get-ChildItem -Path $SourceRoot -Filter *.cs -Recurse | Sort-Object FullName | ForEach-Object { $_.FullName }
 $OutDir = Join-Path $Root "bin"
 $OutFile = Join-Path $OutDir "ClickLight.exe"
 
@@ -11,7 +12,7 @@ if (Test-Path $OutFile) {
 }
 
 Add-Type `
-    -Path $Source `
+    -Path $Sources `
     -ReferencedAssemblies @(
         "System.dll",
         "System.Core.dll",
