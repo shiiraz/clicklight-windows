@@ -89,6 +89,14 @@ Manual checks before release:
 - Confirm settings persist after quitting and relaunching.
 - Try at least one multi-monitor or mixed-DPI setup before publishing a release build.
 
+For the fuller manual checklist, see `docs/QA.md`.
+
+Automated checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
+```
+
 ## Scope
 
 ClickLight is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
