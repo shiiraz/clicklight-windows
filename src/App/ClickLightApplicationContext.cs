@@ -30,6 +30,7 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
         {
             settingsStore = new SettingsStore();
             launchAtLogin = new LaunchAtLoginController();
+            launchAtLogin.RepairIfEnabled();
             overlayCoordinator = new OverlayCoordinator(settingsStore);
             dispatcher = new Control();
             IntPtr dispatcherHandle = dispatcher.Handle;

@@ -93,7 +93,7 @@ Get-StartApps | Where-Object { $_.Name -like '*ClickLight*' }
 
 Run the install command from a normal user PowerShell or by opening the MSIX in Explorer. Avoid sandboxed shells for this check; they can report `0x80070005` even when the package and signature are valid. If the package was accidentally installed from the wrong/elevated user context, remove that installed package first and reinstall as the user who will run ClickLight.
 
-Important follow-up: the current Launch at Login implementation uses the unpackaged `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` path. Before Store submission, verify it under an installed MSIX and replace it with packaged startup task behavior if the registry path is blocked or virtualized.
+Launch at Login uses the classic per-user Run key only for unpackaged builds. MSIX builds declare a `windows.startupTask` manifest extension and control it through the Windows StartupTask API, because MSIX virtualizes direct Run-key writes. If Windows reports the task as disabled by the user, ClickLight must send the user to Startup Apps instead of forcing it back on. Verify this behavior during final Store QA with a full restart, not only sign-out/sign-in.
 
 ## Store Listing Draft
 

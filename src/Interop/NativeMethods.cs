@@ -174,6 +174,30 @@ internal static class NativeMethods
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool BringWindowToTop(IntPtr hWnd);
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetCurrentApplicationUserModelId(ref int applicationUserModelIdLength, StringBuilder applicationUserModelId);
+
+        public static string GetCurrentApplicationUserModelIdSafe()
+        {
+            try
+            {
+                int length = 0;
+                int result = GetCurrentApplicationUserModelId(ref length, null);
+                if (length <= 0 || result != 122)
+                {
+                    return String.Empty;
+                }
+
+                StringBuilder builder = new StringBuilder(length);
+                result = GetCurrentApplicationUserModelId(ref length, builder);
+                return result == 0 ? builder.ToString() : String.Empty;
+            }
+            catch
+            {
+                return String.Empty;
+            }
+        }
+
         public static void SetProcessDPIAwareSafe()
         {
             try

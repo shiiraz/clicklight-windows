@@ -165,6 +165,6 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | Overlay rendering | Per-monitor click-through layered HWNDs + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing. The overlay timer is stopped whenever there is nothing to draw. |
 | Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
 | Settings UI | WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and supports the 760x520 layout target without adding another runtime or SDK requirement. |
-| Launch at login | HKCU `Software\Microsoft\Windows\CurrentVersion\Run` | This is the simplest per-user Windows startup mechanism for an unpackaged tray utility. |
+| Launch at login | Classic Run key for unpackaged builds; MSIX `startupTask` extension for packaged builds | MSIX virtualizes direct Run-key writes, so Store builds must use the Windows-supported startup task path. The unpackaged dev build keeps the simple per-user Run key. |
 | Store packaging | Manual MSIX layout + MakeAppx script | This keeps packaging explicit for a small WinForms app and avoids taking a Visual Studio packaging-project dependency. Store builds must replace the local placeholder package identity with Partner Center values. |
 | Updates | Not Configured stub | Installer/update strategy should wait for signing/packaging decisions. |

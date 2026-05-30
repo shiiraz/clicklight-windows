@@ -20,6 +20,7 @@ namespace ClickLight.Windows
             Run("click pulse progress clamps and expires", ClickPulseProgressClampsAndExpires);
             Run("laser cursor fade matches spec", LaserCursorFadeMatchesSpec);
             Run("laser stroke append and fade match spec", LaserStrokeAppendAndFadeMatchSpec);
+            Run("startup command quotes unpackaged executable", StartupCommandQuotesUnpackagedExecutable);
 
             Console.WriteLine();
             Console.WriteLine("Passed: " + passed);
@@ -199,6 +200,12 @@ namespace ClickLight.Windows
             AssertClose(0.5, stroke.Alpha(20.45), "completed alpha half");
             AssertClose(0.0, stroke.Alpha(20.9), "completed alpha end");
             AssertTrue(stroke.IsExpired(20.91), "completed expired");
+        }
+
+        private static void StartupCommandQuotesUnpackagedExecutable()
+        {
+            string command = LaunchAtLoginController.BuildRegistryStartupCommand(@"C:\Tools\ClickLight\ClickLight.exe");
+            AssertEqual(@"""C:\Tools\ClickLight\ClickLight.exe""", command, "unpackaged startup command");
         }
 
         private static void AssertTrue(bool value, string message)

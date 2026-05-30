@@ -368,14 +368,38 @@ internal sealed class SettingsWindow : Form
         private void BuildSystemPane()
         {
             Panel startupCard = AddCard(84);
-            CheckBox launch = CreateCheckBox(launchAtLogin.IsEnabled);
-            launch.CheckedChanged += delegate
+            bool launchEnabled = launchAtLogin.IsEnabled;
+            bool manualStartupControl = !launchEnabled && launchAtLogin.RequiresManualEnable;
+            if (manualStartupControl)
             {
-                if (updatingControls) return;
-                launchAtLogin.SetEnabled(launch.Checked);
-                BuildSelectedPane();
-            };
-            AddRow(startupCard, 18, "Launch at Login", "Open ClickLight automatically after signing in.", launch);
+                Button openStartup = new Button();
+                openStartup.Text = "Open Startup Apps";
+                openStartup.Width = S(138);
+                openStartup.Height = S(30);
+                openStartup.Click += delegate { LaunchAtLoginController.OpenStartupAppsSettings(); };
+                AddRow(startupCard, 18, "Launch at Login", "Windows requires enabling this from Startup Apps.", openStartup);
+            }
+            else
+            {
+                CheckBox launch = CreateCheckBox(launchEnabled);
+                launch.CheckedChanged += delegate
+                {
+                    if (updatingControls) return;
+                    bool applied = launchAtLogin.SetEnabled(launch.Checked);
+                    if (!applied && launch.Checked)
+                    {
+                        MessageBox.Show(
+                            this,
+                            "Windows requires this startup setting to be enabled from Startup Apps.",
+                            "Open Startup Apps",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        LaunchAtLoginController.OpenStartupAppsSettings();
+                    }
+                    BuildSelectedPane();
+                };
+                AddRow(startupCard, 18, "Launch at Login", "Open ClickLight automatically after signing in.", launch);
+            }
 
             Panel captureCard = AddCard(156);
             Label status = new Label();
