@@ -33,6 +33,7 @@ Run:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
 powershell -ExecutionPolicy Bypass -File .\build.ps1
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -PrepareOnly
 ```
 
 Then complete `docs/QA.md` manually.
@@ -45,6 +46,41 @@ Do not submit until:
 - The settings window does not trigger click overlays over itself.
 - The privacy statement is linked from the repository and Store listing.
 - The package/install path is signed or Store-managed.
+
+## MSIX Packaging
+
+This repo includes a command-line MSIX scaffold:
+
+- `packaging/msix/AppxManifest.xml.template`
+- `package-msix.ps1`
+
+Prepare the package layout without SDK tools:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -PrepareOnly
+```
+
+Create an MSIX after installing the Windows SDK/MSIX packaging tools:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
+```
+
+For Partner Center, replace the local defaults with the package identity values from the reserved Store app:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 `
+  -Version 0.1.0.0 `
+  -PackageName "<Partner Center package/name value>" `
+  -Publisher "<Partner Center publisher value>" `
+  -PublisherDisplayName "<publisher display name>"
+```
+
+Local installation requires signing. Pass either `-CertificateThumbprint` for a certificate in the local cert store, or `-PfxPath` and `-PfxPassword` for a PFX.
+
+Current local machine note: if `makeappx.exe` is missing, install the Windows SDK or MSIX Packaging Tool first. `-PrepareOnly` still validates the staged layout and manifest.
+
+Important follow-up: the current Launch at Login implementation uses the unpackaged `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` path. Before Store submission, verify it under an installed MSIX and replace it with packaged startup task behavior if the registry path is blocked or virtualized.
 
 ## Store Listing Draft
 
@@ -131,4 +167,3 @@ Create a clean 1366x768 Windows 11 desktop screenshot mockup showing ClickLight 
 ```text
 Create 1920x1080 Microsoft Store hero art for ClickLight. Show a Windows 11 desktop demo scene where a cursor click is clearly highlighted by an elegant ripple. The composition should communicate "easy to follow live demos" without text. Keep important visual elements in the top two-thirds and leave the lower third clean for Store overlays.
 ```
-

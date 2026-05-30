@@ -3,6 +3,7 @@ bin/
 obj/
 dist/
 artifacts/
+out/
 
 # IDE/editor state
 .vs/

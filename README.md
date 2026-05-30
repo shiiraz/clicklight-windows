@@ -105,6 +105,20 @@ Automated checks:
 powershell -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
 ```
 
+Prepare the MSIX layout:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -PrepareOnly
+```
+
+Create an MSIX after installing the Windows SDK/MSIX packaging tools:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
+```
+
+Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate.
+
 ## Scope
 
 ClickLight is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
@@ -143,4 +157,5 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
 | Settings UI | WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and supports the 760x520 layout target without adding another runtime or SDK requirement. |
 | Launch at login | HKCU `Software\Microsoft\Windows\CurrentVersion\Run` | This is the simplest per-user Windows startup mechanism for an unpackaged tray utility. |
+| Store packaging | Manual MSIX layout + MakeAppx script | This keeps packaging explicit for a small WinForms app and avoids taking a Visual Studio packaging-project dependency. Store builds must replace the local placeholder package identity with Partner Center values. |
 | Updates | Not Configured stub | Installer/update strategy should wait for signing/packaging decisions. |
