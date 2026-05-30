@@ -19,8 +19,6 @@ internal sealed class ClickOverlayWindow : Form
         private readonly Timer displayTimer;
         private readonly List<ClickPulse> pulses;
         private readonly List<LaserStroke> completedLaserStrokes;
-        private Rectangle? stableLaserBounds;
-        private double stableLaserBoundsUntil;
         private ClickSettings settings;
         private Rectangle screenFrame;
         private LaserCursor laserCursor;
@@ -89,7 +87,6 @@ internal sealed class ClickOverlayWindow : Form
             {
                 laserCursor = null;
                 DisposeLaserContent();
-                stableLaserBounds = null;
                 RenderFrame();
             }
         }
@@ -200,12 +197,9 @@ internal sealed class ClickOverlayWindow : Form
 
             bool hasLaserCursor = laserCursor != null && !laserCursor.IsExpired(now);
             bool hasContent = pulses.Count > 0 || hasLaserCursor || activeLaserStroke != null || completedLaserStrokes.Count > 0;
-            bool keepStableLaserSurface = stableLaserBounds.HasValue && now < stableLaserBoundsUntil;
 
-            if (!hasContent && !keepStableLaserSurface)
+            if (!hasContent)
             {
-                stableLaserBounds = null;
-                stableLaserBoundsUntil = 0.0;
                 if (Visible && IsHandleCreated)
                 {
                     RenderBlankFrame();
@@ -215,12 +209,20 @@ internal sealed class ClickOverlayWindow : Form
                 return;
             }
 
-            Rectangle localRenderBounds = hasContent ? StableContentBounds(ContentBounds(now), now) : stableLaserBounds.Value;
-            Bounds = new Rectangle(
+            bool hasLaserContent = settings.showLaserPointer &&
+                (hasLaserCursor || activeLaserStroke != null || completedLaserStrokes.Count > 0);
+
+            // Laser strokes keep a fixed monitor-sized surface while active. Moving
+            // a layered HWND mid-stroke can produce a one-frame offset on Windows.
+            Rectangle localRenderBounds = hasLaserContent
+                ? new Rectangle(0, 0, screenFrame.Width, screenFrame.Height)
+                : ContentBounds(now);
+            Rectangle targetBounds = new Rectangle(
                 screenFrame.Left + localRenderBounds.Left,
                 screenFrame.Top + localRenderBounds.Top,
                 localRenderBounds.Width,
                 localRenderBounds.Height);
+            Bounds = targetBounds;
 
             if (!Visible)
             {
@@ -229,7 +231,7 @@ internal sealed class ClickOverlayWindow : Form
 
             if (!IsHandleCreated) return;
 
-            using (Bitmap bitmap = new Bitmap(Math.Max(1, Width), Math.Max(1, Height), PixelFormat.Format32bppPArgb))
+            using (Bitmap bitmap = new Bitmap(Math.Max(1, targetBounds.Width), Math.Max(1, targetBounds.Height), PixelFormat.Format32bppPArgb))
             using (Graphics g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
@@ -244,7 +246,7 @@ internal sealed class ClickOverlayWindow : Form
                     DrawPulse(g, pulses[i], now);
                 }
 
-                UpdateLayeredBitmap(bitmap);
+                UpdateLayeredBitmap(bitmap, targetBounds);
             }
         }
 
@@ -284,49 +286,6 @@ internal sealed class ClickOverlayWindow : Form
             return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
         }
 
-        private Rectangle StableContentBounds(Rectangle tightBounds, double now)
-        {
-            if (activeLaserStroke == null && completedLaserStrokes.Count == 0)
-            {
-                if (!stableLaserBounds.HasValue || now >= stableLaserBoundsUntil)
-                {
-                    stableLaserBounds = null;
-                    stableLaserBoundsUntil = 0.0;
-                }
-                return tightBounds;
-            }
-
-            if (stableLaserBounds.HasValue && Contains(stableLaserBounds.Value, tightBounds))
-            {
-                stableLaserBoundsUntil = now + 0.18;
-                return stableLaserBounds.Value;
-            }
-
-            Rectangle expanded = stableLaserBounds.HasValue ? Rectangle.Union(stableLaserBounds.Value, tightBounds) : tightBounds;
-            expanded.Inflate(96, 96);
-            expanded = ClampToScreen(expanded);
-            stableLaserBounds = expanded;
-            stableLaserBoundsUntil = now + 0.18;
-            return expanded;
-        }
-
-        private Rectangle ClampToScreen(Rectangle bounds)
-        {
-            int left = Math.Max(0, bounds.Left);
-            int top = Math.Max(0, bounds.Top);
-            int right = Math.Min(screenFrame.Width, bounds.Right);
-            int bottom = Math.Min(screenFrame.Height, bounds.Bottom);
-            return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
-        }
-
-        private static bool Contains(Rectangle outer, Rectangle inner)
-        {
-            return inner.Left >= outer.Left &&
-                inner.Top >= outer.Top &&
-                inner.Right <= outer.Right &&
-                inner.Bottom <= outer.Bottom;
-        }
-
         private static RectangleF PulseBounds(ClickPulse pulse)
         {
             float radius = (float)(pulse.BaseSize * 1.35 + 48.0);
@@ -351,11 +310,12 @@ internal sealed class ClickOverlayWindow : Form
         private void RenderBlankFrame()
         {
             if (!IsHandleCreated) return;
-            using (Bitmap bitmap = new Bitmap(Math.Max(1, Width), Math.Max(1, Height), PixelFormat.Format32bppPArgb))
+            Rectangle targetBounds = new Rectangle(Left, Top, Math.Max(1, Width), Math.Max(1, Height));
+            using (Bitmap bitmap = new Bitmap(targetBounds.Width, targetBounds.Height, PixelFormat.Format32bppPArgb))
             using (Graphics g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
-                UpdateLayeredBitmap(bitmap);
+                UpdateLayeredBitmap(bitmap, targetBounds);
             }
         }
 
@@ -512,7 +472,7 @@ internal sealed class ClickOverlayWindow : Form
             return 0.0;
         }
 
-        private void UpdateLayeredBitmap(Bitmap bitmap)
+        private void UpdateLayeredBitmap(Bitmap bitmap, Rectangle targetBounds)
         {
             IntPtr screenDc = IntPtr.Zero;
             IntPtr memDc = IntPtr.Zero;
@@ -526,8 +486,8 @@ internal sealed class ClickOverlayWindow : Form
                 hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
                 oldBitmap = NativeMethods.SelectObject(memDc, hBitmap);
 
-                NativeMethods.POINT top = new NativeMethods.POINT(Left, Top);
-                NativeMethods.SIZE size = new NativeMethods.SIZE(Width, Height);
+                NativeMethods.POINT top = new NativeMethods.POINT(targetBounds.Left, targetBounds.Top);
+                NativeMethods.SIZE size = new NativeMethods.SIZE(targetBounds.Width, targetBounds.Height);
                 NativeMethods.POINT source = new NativeMethods.POINT(0, 0);
                 NativeMethods.BLENDFUNCTION blend = new NativeMethods.BLENDFUNCTION();
                 blend.BlendOp = NativeMethods.AC_SRC_OVER;
