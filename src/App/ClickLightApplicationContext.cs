@@ -22,15 +22,21 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
         private readonly MouseHook mouseHook;
         private readonly TrayController trayController;
         private readonly Control dispatcher;
+        private readonly System.Threading.EventWaitHandle activationEvent;
+        private readonly System.Threading.Thread activationThread;
         private SettingsWindow settingsWindow;
+        private bool trayMenuOpen;
+        private volatile bool disposed;
 
-        public ClickLightApplicationContext()
+        public ClickLightApplicationContext(System.Threading.EventWaitHandle activationEvent)
         {
+            this.activationEvent = activationEvent;
             settingsStore = new SettingsStore();
             launchAtLogin = new LaunchAtLoginController();
             overlayCoordinator = new OverlayCoordinator(settingsStore);
             dispatcher = new Control();
             dispatcher.CreateControl();
+            activationThread = StartActivationListener();
 
             mouseHook = new MouseHook(delegate(ClickEvent clickEvent)
             {
@@ -39,6 +45,10 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
                     dispatcher.BeginInvoke(new Action(delegate
                     {
                         if (settingsWindow != null && settingsWindow.ContainsScreenPoint(clickEvent.X, clickEvent.Y))
+                        {
+                            return;
+                        }
+                        if (trayMenuOpen)
                         {
                             return;
                         }
@@ -53,7 +63,8 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
                 delegate { return mouseHook.StatusLabel; },
                 OpenSettings,
                 ShowTestPulse,
-                Quit);
+                Quit,
+                SetTrayMenuOpen);
 
             settingsStore.SettingsChanged += delegate
             {
@@ -65,6 +76,11 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
             overlayCoordinator.Start();
             RefreshCapture();
             trayController.Start();
+
+            if (settingsStore.IsFirstRun)
+            {
+                OpenSettings();
+            }
         }
 
         private void RefreshCapture()
@@ -105,10 +121,53 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
             ExitThread();
         }
 
+        private void SetTrayMenuOpen(bool isOpen)
+        {
+            trayMenuOpen = isOpen;
+        }
+
+        private System.Threading.Thread StartActivationListener()
+        {
+            System.Threading.Thread thread = new System.Threading.Thread(new System.Threading.ThreadStart(delegate
+            {
+                while (!disposed)
+                {
+                    try
+                    {
+                        activationEvent.WaitOne();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
+                    }
+
+                    if (disposed)
+                    {
+                        return;
+                    }
+
+                    if (!dispatcher.IsDisposed && dispatcher.IsHandleCreated)
+                    {
+                        dispatcher.BeginInvoke(new Action(OpenSettings));
+                    }
+                }
+            }));
+            thread.IsBackground = true;
+            thread.Name = "ClickLight activation listener";
+            thread.Start();
+            return thread;
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                disposed = true;
+                activationEvent.Set();
+                if (activationThread != null && activationThread.IsAlive)
+                {
+                    activationThread.Join(250);
+                }
                 mouseHook.Dispose();
                 trayController.Dispose();
                 if (settingsWindow != null)

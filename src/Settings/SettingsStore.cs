@@ -14,9 +14,10 @@ using Microsoft.Win32;
 
 namespace ClickLight.Windows
 {
-internal sealed class SettingsStore
+    internal sealed class SettingsStore
     {
         private readonly string settingsPath;
+        private readonly bool firstRun;
         private ClickSettings current;
 
         public event EventHandler SettingsChanged;
@@ -27,12 +28,17 @@ internal sealed class SettingsStore
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "ClickLight");
             settingsPath = Path.Combine(dir, "settings.json");
-            current = LoadFromDisk();
+            current = LoadFromDisk(out firstRun);
         }
 
         public ClickSettings Settings
         {
             get { return current.Clone(); }
+        }
+
+        public bool IsFirstRun
+        {
+            get { return firstRun; }
         }
 
         public void Update(Action<ClickSettings> mutate)
@@ -47,14 +53,17 @@ internal sealed class SettingsStore
             Save(ClickSettings.Defaults());
         }
 
-        private ClickSettings LoadFromDisk()
+        private ClickSettings LoadFromDisk(out bool createdDefaults)
         {
+            createdDefaults = false;
+
             try
             {
                 if (!File.Exists(settingsPath))
                 {
                     ClickSettings defaults = ClickSettings.Defaults();
                     WriteToDisk(defaults);
+                    createdDefaults = true;
                     return defaults;
                 }
 

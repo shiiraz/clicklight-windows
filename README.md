@@ -12,12 +12,14 @@ This Windows port is derived from the original macOS ClickLight project by Auror
 
 The original MIT license notice is retained in `LICENSE`.
 
+Privacy notes are in `PRIVACY.md`.
+
 ## Status
 
 Implemented:
 
 - Notification-area tray icon with the fixed menu order.
-- Enabled toggle, tray label tooltip toggle, launch-at-login toggle, preset/color menu persistence, test pulse, and clean quit.
+- Enabled toggle, capture-status tooltip toggle, launch-at-login toggle, preset/color menu persistence, test pulse, and clean quit.
 - Global low-level mouse capture using `WH_MOUSE_LL`.
 - Press, release, right-click, drag, and laser pointer visuals using the original easing, default colors, size, intensity, and duration math ported to GDI+.
 - Event dedupe: same kind, within 3 px, inside 0.1 s.
@@ -26,6 +28,8 @@ Implemented:
 - Settings window with General, Visual Style, Event Visibility, Tray, and System panes.
 - Settings Preview Pulse and Reset to Defaults.
 - Per-monitor overlay windows with display-change rebuilds.
+- First launch opens Settings so Store/Start users can see where the app lives; later launches stay tray-only.
+- Single-instance launch behavior: reopening ClickLight focuses Settings instead of creating a second tray process.
 
 Not finished yet:
 
@@ -47,7 +51,7 @@ The executable is written to:
 bin\ClickLight.exe
 ```
 
-Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button.
+Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button. On a fresh install, the Settings window opens once; after that ClickLight starts quietly in the tray.
 
 ## Local Development
 
@@ -65,6 +69,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 ClickLight runs from the notification area. Use **Quit ClickLight** from the tray menu before rebuilding; otherwise `bin\ClickLight.exe` may be locked by the running process.
+
+If ClickLight is already running, launching `ClickLight.exe` again focuses the existing Settings window instead of starting another copy.
 
 For a clean rebuild, delete `bin\` and run the build script again.
 
@@ -90,6 +96,8 @@ Manual checks before release:
 - Try at least one multi-monitor or mixed-DPI setup before publishing a release build.
 
 For the fuller manual checklist, see `docs/QA.md`.
+
+For Microsoft Store preparation notes, see `docs/STORE_READINESS.md`.
 
 Automated checks:
 
@@ -129,6 +137,7 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | Language/runtime | C# on built-in .NET Framework via PowerShell `Add-Type` | This keeps the app native and buildable on a plain Windows setup without installing a separate SDK. |
 | UI loop | WinForms `ApplicationContext` | It gives a native Windows message loop, tray support, timers, and Win32 interop with very little scaffolding. |
 | Tray | `System.Windows.Forms.NotifyIcon` | It maps directly to the Windows notification area and avoids extra dependencies. |
+| Single instance | Named mutex + named activation event | A second launch exits immediately after signaling the running tray process to open Settings. This avoids duplicate tray icons without adding IPC dependencies or idle polling. |
 | Global input | `WH_MOUSE_LL` | Matches the requested system-wide, non-blocking capture model. The hook callback converts events and returns immediately. |
 | Overlay rendering | Per-monitor click-through layered HWNDs + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing. The overlay timer is stopped whenever there is nothing to draw. |
 | Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |

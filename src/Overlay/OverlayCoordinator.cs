@@ -92,7 +92,6 @@ internal sealed class OverlayCoordinator : IDisposable
             if (!overlaysByScreen.TryGetValue(key, out overlayWindow))
             {
                 overlayWindow = new ClickOverlayWindow(screen.Bounds, settings);
-                overlayWindow.ShowInactive();
                 overlaysByScreen[key] = overlayWindow;
             }
             return overlayWindow;

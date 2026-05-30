@@ -20,6 +20,8 @@ internal sealed class SettingsWindow : Form
         private readonly LaunchAtLoginController launchAtLogin;
         private readonly Func<string> captureStatus;
         private readonly Action previewPulse;
+        private readonly float uiScale;
+        private readonly Icon windowIcon;
         private readonly ListBox paneList;
         private readonly Panel contentPanel;
         private bool updatingControls;
@@ -32,22 +34,20 @@ internal sealed class SettingsWindow : Form
             Func<string> captureStatus,
             Action previewPulse)
         {
+            uiScale = DetectUiScale();
             this.settingsStore = settingsStore;
             this.launchAtLogin = launchAtLogin;
             this.captureStatus = captureStatus;
             this.previewPulse = previewPulse;
 
+            AutoScaleMode = AutoScaleMode.None;
             Text = "ClickLight Settings";
-            Size = new Size(760, 520);
-            MinimumSize = new Size(700, 480);
+            windowIcon = TrayIconFactory.CreateIcon();
+            Icon = windowIcon;
+            Size = new Size(S(760), S(520));
+            MinimumSize = new Size(S(700), S(480));
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9.0f);
-
-            SplitContainer split = new SplitContainer();
-            split.Dock = DockStyle.Fill;
-            split.FixedPanel = FixedPanel.Panel1;
-            split.SplitterDistance = 190;
-            split.Panel1.BackColor = Color.FromArgb(245, 245, 245);
 
             paneList = new ListBox();
             paneList.Dock = DockStyle.Fill;
@@ -59,8 +59,8 @@ internal sealed class SettingsWindow : Form
             paneList.Items.Add("Event Visibility");
             paneList.Items.Add("Tray");
             paneList.Items.Add("System");
+            paneList.ItemHeight = TextRenderer.MeasureText("Event Visibility", paneList.Font).Height + S(8);
             paneList.SelectedIndexChanged += delegate { BuildSelectedPane(); };
-            split.Panel1.Controls.Add(paneList);
 
             contentPanel = new Panel();
             contentPanel.Dock = DockStyle.Fill;
@@ -73,8 +73,15 @@ internal sealed class SettingsWindow : Form
                     BuildSelectedPane();
                 }
             };
-            split.Panel2.Controls.Add(contentPanel);
-            Controls.Add(split);
+
+            Panel sidebarPanel = new Panel();
+            sidebarPanel.Dock = DockStyle.Left;
+            sidebarPanel.Width = SidebarWidth();
+            sidebarPanel.BackColor = Color.FromArgb(245, 245, 245);
+            sidebarPanel.Controls.Add(paneList);
+
+            Controls.Add(contentPanel);
+            Controls.Add(sidebarPanel);
 
             settingsStore.SettingsChanged += SettingsDidChange;
             paneList.SelectedIndex = 0;
@@ -119,6 +126,11 @@ internal sealed class SettingsWindow : Form
             if (disposing)
             {
                 settingsStore.SettingsChanged -= SettingsDidChange;
+                Icon = null;
+                if (windowIcon != null)
+                {
+                    windowIcon.Dispose();
+                }
             }
             base.Dispose(disposing);
         }
@@ -144,7 +156,7 @@ internal sealed class SettingsWindow : Form
             updatingControls = true;
             contentPanel.SuspendLayout();
             contentPanel.Controls.Clear();
-            nextY = 20;
+            nextY = S(20);
 
             switch (paneList.SelectedIndex)
             {
@@ -190,8 +202,8 @@ internal sealed class SettingsWindow : Form
             Panel resetCard = AddCard(92);
             Button reset = new Button();
             reset.Text = "Reset";
-            reset.Width = 92;
-            reset.Height = 30;
+            reset.Width = S(92);
+            reset.Height = S(30);
             reset.Click += delegate
             {
                 DialogResult result = MessageBox.Show(
@@ -224,8 +236,8 @@ internal sealed class SettingsWindow : Form
             Panel previewCard = AddCard(82);
             Button preview = new Button();
             preview.Text = "Preview Pulse";
-            preview.Width = 118;
-            preview.Height = 30;
+            preview.Width = S(118);
+            preview.Height = S(30);
             preview.Click += delegate { previewPulse(); };
             AddRow(previewCard, 18, "Preview", "Show the current pulse style at the pointer.", preview);
 
@@ -262,7 +274,7 @@ internal sealed class SettingsWindow : Form
             Panel colorCard = AddCard(132);
             ComboBox colorCombo = new ComboBox();
             colorCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-            colorCombo.Width = 150;
+            colorCombo.Width = S(150);
             for (int i = 0; i < ClickColorPreset.All.Length; i++)
             {
                 string preset = ClickColorPreset.All[i];
@@ -282,8 +294,8 @@ internal sealed class SettingsWindow : Form
 
             Button customColor = new Button();
             customColor.Text = "Pick Color";
-            customColor.Width = 100;
-            customColor.Height = 30;
+            customColor.Width = S(100);
+            customColor.Height = S(30);
             customColor.Click += delegate { PickCustomColor(); };
             AddRow(colorCard, 72, "Custom Color", "Picking a color switches to Custom.", customColor);
         }
@@ -345,7 +357,7 @@ internal sealed class SettingsWindow : Form
                 if (updatingControls) return;
                 ApplySetting(delegate(ClickSettings s) { s.showMenuBarText = showTrayLabel.Checked; }, false);
             };
-            AddRow(card, 18, "Show Tray Label", "Use a longer tooltip/status label for the tray icon.", showTrayLabel);
+            AddRow(card, 18, "Show Capture Status in Tooltip", "Include the click-capture status when hovering the tray icon.", showTrayLabel);
         }
 
         private void BuildSystemPane()
@@ -365,15 +377,15 @@ internal sealed class SettingsWindow : Form
             status.Text = captureStatus();
             status.AutoSize = false;
             status.TextAlign = ContentAlignment.MiddleRight;
-            status.Width = 170;
-            status.Height = 26;
+            status.Width = S(170);
+            status.Height = S(26);
             AddRow(captureCard, 18, "Click Capture", "Current global mouse hook status.", status);
 
             Label note = new Label();
             note.Text = "Windows may block non-elevated hooks from seeing clicks in elevated apps. Exclusive fullscreen apps may also hide overlays.";
-            note.Location = new Point(16, 82);
-            note.Width = captureCard.Width - 32;
-            note.Height = 44;
+            note.Location = new Point(S(16), S(82));
+            note.Width = captureCard.Width - S(32);
+            note.Height = Math.Max(S(44), TextHeight(note.Text, note.Font, note.Width));
             note.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             note.ForeColor = SystemColors.GrayText;
             captureCard.Controls.Add(note);
@@ -383,8 +395,8 @@ internal sealed class SettingsWindow : Form
             updates.Text = "Not Configured";
             updates.AutoSize = false;
             updates.TextAlign = ContentAlignment.MiddleRight;
-            updates.Width = 170;
-            updates.Height = 26;
+            updates.Width = S(170);
+            updates.Height = S(26);
             AddRow(updatesCard, 18, "Updates", "Installer and update strategy are not configured yet.", updates);
         }
 
@@ -393,20 +405,20 @@ internal sealed class SettingsWindow : Form
             Label titleLabel = new Label();
             titleLabel.Text = title;
             titleLabel.Font = new Font("Segoe UI", 18.0f, FontStyle.Bold);
-            titleLabel.Location = new Point(24, nextY);
+            titleLabel.Location = new Point(S(24), nextY);
             titleLabel.AutoSize = true;
             contentPanel.Controls.Add(titleLabel);
-            nextY += 34;
+            nextY += titleLabel.PreferredHeight + S(6);
 
             Label subtitleLabel = new Label();
             subtitleLabel.Text = subtitle;
             subtitleLabel.ForeColor = SystemColors.GrayText;
-            subtitleLabel.Location = new Point(26, nextY);
+            subtitleLabel.Location = new Point(S(26), nextY);
             subtitleLabel.Width = ContentWidth();
-            subtitleLabel.Height = 22;
+            subtitleLabel.Height = TextHeight(subtitle, subtitleLabel.Font, subtitleLabel.Width);
             subtitleLabel.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             contentPanel.Controls.Add(subtitleLabel);
-            nextY += 42;
+            nextY += subtitleLabel.Height + S(24);
         }
 
         private Panel AddCard(int height)
@@ -414,34 +426,40 @@ internal sealed class SettingsWindow : Form
             Panel card = new Panel();
             card.BorderStyle = BorderStyle.FixedSingle;
             card.BackColor = Color.FromArgb(250, 250, 250);
-            card.Location = new Point(24, nextY);
+            card.Location = new Point(S(24), nextY);
             card.Width = ContentWidth();
-            card.Height = height;
+            card.Height = S(height);
             card.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             contentPanel.Controls.Add(card);
-            nextY += height + 14;
+            nextY += card.Height + S(14);
             return card;
         }
 
         private void AddRow(Panel card, int y, string title, string subtitle, Control trailing)
         {
+            int rowY = S(y);
+            int inset = S(16);
+            int titleToSubtitle = S(24);
+            int trailingRight = S(18);
+            int trailingTopOffset = S(8);
+
             Label titleLabel = new Label();
             titleLabel.Text = title;
             titleLabel.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
-            titleLabel.Location = new Point(16, y);
+            titleLabel.Location = new Point(inset, rowY);
             titleLabel.AutoSize = true;
             card.Controls.Add(titleLabel);
 
             Label subtitleLabel = new Label();
             subtitleLabel.Text = subtitle;
             subtitleLabel.ForeColor = SystemColors.GrayText;
-            subtitleLabel.Location = new Point(16, y + 22);
-            subtitleLabel.Width = Math.Max(200, card.Width - trailing.Width - 58);
-            subtitleLabel.Height = 34;
+            subtitleLabel.Location = new Point(inset, rowY + titleToSubtitle);
+            subtitleLabel.Width = Math.Max(S(200), card.Width - trailing.Width - S(58));
+            subtitleLabel.Height = Math.Max(S(34), TextHeight(subtitle, subtitleLabel.Font, subtitleLabel.Width));
             subtitleLabel.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             card.Controls.Add(subtitleLabel);
 
-            trailing.Location = new Point(card.Width - trailing.Width - 18, y + 8);
+            trailing.Location = new Point(card.Width - trailing.Width - trailingRight, rowY + trailingTopOffset);
             trailing.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             card.Controls.Add(trailing);
         }
@@ -451,8 +469,8 @@ internal sealed class SettingsWindow : Form
             CheckBox checkBox = new CheckBox();
             checkBox.Checked = isChecked;
             checkBox.AutoSize = true;
-            checkBox.Width = 22;
-            checkBox.Height = 22;
+            checkBox.Width = S(22);
+            checkBox.Height = S(22);
             return checkBox;
         }
 
@@ -460,7 +478,7 @@ internal sealed class SettingsWindow : Form
         {
             ComboBox combo = new ComboBox();
             combo.DropDownStyle = ComboBoxStyle.DropDownList;
-            combo.Width = 150;
+            combo.Width = S(150);
             int selectedIndex = -1;
             for (int i = 0; i < presets.Length; i++)
             {
@@ -511,23 +529,23 @@ internal sealed class SettingsWindow : Form
         private Panel CreateSliderPanel(int minimum, int maximum, int value, string suffix, Action<int> select)
         {
             Panel panel = new Panel();
-            panel.Width = 322;
-            panel.Height = 42;
+            panel.Width = S(322);
+            panel.Height = S(42);
 
             TrackBar track = new TrackBar();
             track.Minimum = minimum;
             track.Maximum = maximum;
             track.Value = Math.Max(minimum, Math.Min(maximum, value));
             track.TickStyle = TickStyle.None;
-            track.Width = 230;
-            track.Location = new Point(0, 4);
+            track.Width = S(230);
+            track.Location = new Point(0, S(4));
             panel.Controls.Add(track);
 
             Label readout = new Label();
             readout.Text = FormatSliderReadout(track.Value, suffix);
-            readout.Location = new Point(236, 10);
-            readout.Width = 82;
-            readout.Height = 22;
+            readout.Location = new Point(S(236), S(10));
+            readout.Width = S(82);
+            readout.Height = S(22);
             readout.TextAlign = ContentAlignment.MiddleRight;
             panel.Controls.Add(readout);
 
@@ -597,7 +615,42 @@ internal sealed class SettingsWindow : Form
 
         private int ContentWidth()
         {
-            return Math.Max(420, contentPanel.ClientSize.Width - 48);
+            return Math.Max(S(420), contentPanel.ClientSize.Width - S(48));
+        }
+
+        private int SidebarWidth()
+        {
+            return Math.Max(S(150), TextRenderer.MeasureText("Event Visibility", paneList.Font).Width + S(42));
+        }
+
+        private int S(int value)
+        {
+            return Math.Max(1, (int)Math.Round(value * uiScale));
+        }
+
+        private static int TextHeight(string text, Font font, int width)
+        {
+            Size measured = TextRenderer.MeasureText(
+                text,
+                font,
+                new Size(Math.Max(1, width), 10000),
+                TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+            return measured.Height;
+        }
+
+        private static float DetectUiScale()
+        {
+            try
+            {
+                using (Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
+                {
+                    return Math.Max(1.0f, graphics.DpiX / 96.0f);
+                }
+            }
+            catch
+            {
+                return 1.0f;
+            }
         }
 
         private static int UnitToByte(double value)

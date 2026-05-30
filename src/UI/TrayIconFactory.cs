@@ -18,6 +18,12 @@ internal static class TrayIconFactory
     {
         public static Icon CreateIcon()
         {
+            Icon assetIcon = TryLoadIconAsset();
+            if (assetIcon != null)
+            {
+                return assetIcon;
+            }
+
             Bitmap bitmap = new Bitmap(32, 32, PixelFormat.Format32bppArgb);
             using (Graphics g = Graphics.FromImage(bitmap))
             {
@@ -50,6 +56,37 @@ internal static class TrayIconFactory
             NativeMethods.DestroyIcon(handle);
             bitmap.Dispose();
             return icon;
+        }
+
+        private static Icon TryLoadIconAsset()
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string currentDirectory = Environment.CurrentDirectory;
+            string[] candidates =
+            {
+                Path.Combine(baseDirectory, "assets", "tray", "clicklight-tray.ico"),
+                Path.Combine(baseDirectory, "..", "assets", "tray", "clicklight-tray.ico"),
+                Path.Combine(currentDirectory, "assets", "tray", "clicklight-tray.ico")
+            };
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                string path = Path.GetFullPath(candidates[i]);
+                if (!File.Exists(path))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    return new Icon(path);
+                }
+                catch
+                {
+                }
+            }
+
+            return null;
         }
     }
 }

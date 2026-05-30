@@ -36,7 +36,7 @@ internal sealed class ClickOverlayWindow : Form
             this.screenFrame = screenFrame;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
-            Bounds = screenFrame;
+            Bounds = new Rectangle(screenFrame.Left, screenFrame.Top, 1, 1);
             ShowInTaskbar = false;
             TopMost = true;
             BackColor = Color.Black;
@@ -84,10 +84,6 @@ internal sealed class ClickOverlayWindow : Form
         public void ShowEvent(ClickEvent clickEvent, ClickSettings newSettings)
         {
             settings = newSettings.Clone();
-            if (!Visible)
-            {
-                ShowInactive();
-            }
 
             PointF localPoint = new PointF(
                 (float)(clickEvent.X - screenFrame.Left),
@@ -189,14 +185,37 @@ internal sealed class ClickOverlayWindow : Form
 
         private void RenderFrame()
         {
-            if (!IsHandleCreated) return;
-
             double now = Clock.NowSeconds();
             pulses.RemoveAll(delegate(ClickPulse pulse) { return pulse.IsExpired(now); });
             completedLaserStrokes.RemoveAll(delegate(LaserStroke stroke) { return stroke.IsExpired(now); });
 
             bool hasLaserCursor = laserCursor != null && !laserCursor.IsExpired(now);
             bool hasContent = pulses.Count > 0 || hasLaserCursor || activeLaserStroke != null || completedLaserStrokes.Count > 0;
+
+            if (!hasContent)
+            {
+                if (Visible && IsHandleCreated)
+                {
+                    RenderBlankFrame();
+                }
+                StopDisplayTimer();
+                Hide();
+                return;
+            }
+
+            Rectangle localRenderBounds = ContentBounds(now);
+            Bounds = new Rectangle(
+                screenFrame.Left + localRenderBounds.Left,
+                screenFrame.Top + localRenderBounds.Top,
+                localRenderBounds.Width,
+                localRenderBounds.Height);
+
+            if (!Visible)
+            {
+                Show();
+            }
+
+            if (!IsHandleCreated) return;
 
             using (Bitmap bitmap = new Bitmap(Math.Max(1, Width), Math.Max(1, Height), PixelFormat.Format32bppPArgb))
             using (Graphics g = Graphics.FromImage(bitmap))
@@ -205,6 +224,7 @@ internal sealed class ClickOverlayWindow : Form
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.CompositingQuality = CompositingQuality.HighQuality;
+                g.TranslateTransform(-localRenderBounds.Left, -localRenderBounds.Top);
 
                 DrawLaser(g, now);
                 for (int i = 0; i < pulses.Count; i++)
@@ -214,11 +234,82 @@ internal sealed class ClickOverlayWindow : Form
 
                 UpdateLayeredBitmap(bitmap);
             }
+        }
 
-            if (!hasContent)
+        private Rectangle ContentBounds(double now)
+        {
+            RectangleF? content = null;
+
+            for (int i = 0; i < pulses.Count; i++)
             {
-                StopDisplayTimer();
+                AddBounds(ref content, PulseBounds(pulses[i]));
             }
+
+            if (settings.showLaserPointer)
+            {
+                if (laserCursor != null && !laserCursor.IsExpired(now))
+                {
+                    AddBounds(ref content, BoundsAround(laserCursor.Point, 24.0f));
+                }
+
+                if (activeLaserStroke != null)
+                {
+                    AddBounds(ref content, StrokeBounds(activeLaserStroke, 24.0f));
+                }
+
+                for (int i = 0; i < completedLaserStrokes.Count; i++)
+                {
+                    AddBounds(ref content, StrokeBounds(completedLaserStrokes[i], 24.0f));
+                }
+            }
+
+            RectangleF contentBounds = content.GetValueOrDefault(new RectangleF(0.0f, 0.0f, 1.0f, 1.0f));
+            int left = Math.Max(0, (int)Math.Floor(contentBounds.Left));
+            int top = Math.Max(0, (int)Math.Floor(contentBounds.Top));
+            int right = Math.Min(screenFrame.Width, (int)Math.Ceiling(contentBounds.Right));
+            int bottom = Math.Min(screenFrame.Height, (int)Math.Ceiling(contentBounds.Bottom));
+
+            return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+        }
+
+        private static RectangleF PulseBounds(ClickPulse pulse)
+        {
+            float radius = (float)(pulse.BaseSize * 1.35 + 48.0);
+            return BoundsAround(pulse.Point, radius);
+        }
+
+        private static RectangleF StrokeBounds(LaserStroke stroke, float padding)
+        {
+            if (stroke.Points.Count == 0)
+            {
+                return new RectangleF(0.0f, 0.0f, 1.0f, 1.0f);
+            }
+
+            float left = stroke.Points[0].X;
+            float top = stroke.Points[0].Y;
+            float right = stroke.Points[0].X;
+            float bottom = stroke.Points[0].Y;
+
+            for (int i = 1; i < stroke.Points.Count; i++)
+            {
+                PointF point = stroke.Points[i];
+                left = Math.Min(left, point.X);
+                top = Math.Min(top, point.Y);
+                right = Math.Max(right, point.X);
+                bottom = Math.Max(bottom, point.Y);
+            }
+
+            return RectangleF.FromLTRB(left - padding, top - padding, right + padding, bottom + padding);
+        }
+
+        private static RectangleF BoundsAround(PointF point, float radius)
+        {
+            return new RectangleF(point.X - radius, point.Y - radius, radius * 2.0f, radius * 2.0f);
+        }
+
+        private static void AddBounds(ref RectangleF? target, RectangleF addition)
+        {
+            target = target.HasValue ? RectangleF.Union(target.Value, addition) : addition;
         }
 
         private void RenderBlankFrame()

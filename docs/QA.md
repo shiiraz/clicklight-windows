@@ -25,8 +25,11 @@ Current automated coverage:
 - Build with `powershell -ExecutionPolicy Bypass -File .\build.ps1`.
 - Launch `bin\ClickLight.exe`.
 - Confirm it appears only in the notification area, not the taskbar.
+- On a fresh settings profile, confirm Settings opens automatically once so the user can find the tray app.
 - Open the tray menu.
 - Click **Test Pulse at Pointer**.
+- Launch `bin\ClickLight.exe` again while ClickLight is already running.
+- Confirm a second process/tray icon is not created and the existing Settings window opens or focuses.
 - Toggle **Enabled** off and confirm clicks no longer show overlays.
 - Toggle **Enabled** on and confirm overlays return.
 - Quit from **Quit ClickLight** and confirm the process exits.

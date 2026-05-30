@@ -22,6 +22,7 @@ internal sealed class TrayController : IDisposable
         private readonly Action openSettings;
         private readonly Action testPulse;
         private readonly Action quit;
+        private readonly Action<bool> setMenuOpen;
         private readonly NotifyIcon notifyIcon;
         private ContextMenuStrip menu;
 
@@ -31,7 +32,8 @@ internal sealed class TrayController : IDisposable
             Func<string> captureStatus,
             Action openSettings,
             Action testPulse,
-            Action quit)
+            Action quit,
+            Action<bool> setMenuOpen)
         {
             this.settingsStore = settingsStore;
             this.launchAtLogin = launchAtLogin;
@@ -39,6 +41,7 @@ internal sealed class TrayController : IDisposable
             this.openSettings = openSettings;
             this.testPulse = testPulse;
             this.quit = quit;
+            this.setMenuOpen = setMenuOpen;
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = TrayIconFactory.CreateIcon();
             notifyIcon.Text = "ClickLight";
@@ -56,6 +59,8 @@ internal sealed class TrayController : IDisposable
             ClickSettings settings = settingsStore.Settings;
             ContextMenuStrip oldMenu = menu;
             menu = new ContextMenuStrip();
+            menu.Opened += delegate { setMenuOpen(true); };
+            menu.Closed += delegate { setMenuOpen(false); };
 
             menu.Items.Add(ToggleItem("Enabled", settings.isEnabled, delegate
             {
@@ -92,7 +97,7 @@ internal sealed class TrayController : IDisposable
             menu.Items.Add(showDrag);
 
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(ToggleItem("Show Tray Label", settings.showMenuBarText, delegate
+            menu.Items.Add(ToggleItem("Show Capture Status in Tooltip", settings.showMenuBarText, delegate
             {
                 settingsStore.Update(delegate(ClickSettings s) { s.showMenuBarText = !s.showMenuBarText; });
             }));
