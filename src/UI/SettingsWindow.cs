@@ -89,17 +89,22 @@ internal sealed class SettingsWindow : Form
 
         public void ShowSettings()
         {
-            if (WindowState == FormWindowState.Minimized)
-            {
-                WindowState = FormWindowState.Normal;
-            }
-
             if (!Visible)
             {
                 Show();
             }
 
+            if (WindowState == FormWindowState.Minimized)
+            {
+                WindowState = FormWindowState.Normal;
+            }
+
+            EnsureVisibleOnScreen();
             BuildSelectedPane();
+
+            NativeMethods.ShowWindow(Handle, NativeMethods.SW_RESTORE);
+            NativeMethods.BringWindowToTop(Handle);
+            NativeMethods.SetForegroundWindow(Handle);
             Activate();
             BringToFront();
         }
@@ -616,6 +621,23 @@ internal sealed class SettingsWindow : Form
         private int ContentWidth()
         {
             return Math.Max(S(420), contentPanel.ClientSize.Width - S(48));
+        }
+
+        private void EnsureVisibleOnScreen()
+        {
+            Rectangle bounds = Bounds;
+            for (int i = 0; i < Screen.AllScreens.Length; i++)
+            {
+                if (Screen.AllScreens[i].WorkingArea.IntersectsWith(bounds))
+                {
+                    return;
+                }
+            }
+
+            Rectangle workingArea = Screen.FromPoint(Cursor.Position).WorkingArea;
+            Location = new Point(
+                workingArea.Left + Math.Max(0, (workingArea.Width - Width) / 2),
+                workingArea.Top + Math.Max(0, (workingArea.Height - Height) / 2));
         }
 
         private int SidebarWidth()

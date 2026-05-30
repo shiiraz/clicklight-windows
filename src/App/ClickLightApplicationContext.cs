@@ -22,21 +22,18 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
         private readonly MouseHook mouseHook;
         private readonly TrayController trayController;
         private readonly Control dispatcher;
-        private readonly System.Threading.EventWaitHandle activationEvent;
-        private readonly System.Threading.Thread activationThread;
+        private readonly ActivationWindow activationWindow;
         private SettingsWindow settingsWindow;
         private bool trayMenuOpen;
-        private volatile bool disposed;
 
-        public ClickLightApplicationContext(System.Threading.EventWaitHandle activationEvent)
+        public ClickLightApplicationContext()
         {
-            this.activationEvent = activationEvent;
             settingsStore = new SettingsStore();
             launchAtLogin = new LaunchAtLoginController();
             overlayCoordinator = new OverlayCoordinator(settingsStore);
             dispatcher = new Control();
-            dispatcher.CreateControl();
-            activationThread = StartActivationListener();
+            IntPtr dispatcherHandle = dispatcher.Handle;
+            activationWindow = new ActivationWindow(OpenSettings);
 
             mouseHook = new MouseHook(delegate(ClickEvent clickEvent)
             {
@@ -126,48 +123,10 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
             trayMenuOpen = isOpen;
         }
 
-        private System.Threading.Thread StartActivationListener()
-        {
-            System.Threading.Thread thread = new System.Threading.Thread(new System.Threading.ThreadStart(delegate
-            {
-                while (!disposed)
-                {
-                    try
-                    {
-                        activationEvent.WaitOne();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        return;
-                    }
-
-                    if (disposed)
-                    {
-                        return;
-                    }
-
-                    if (!dispatcher.IsDisposed && dispatcher.IsHandleCreated)
-                    {
-                        dispatcher.BeginInvoke(new Action(OpenSettings));
-                    }
-                }
-            }));
-            thread.IsBackground = true;
-            thread.Name = "ClickLight activation listener";
-            thread.Start();
-            return thread;
-        }
-
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                disposed = true;
-                activationEvent.Set();
-                if (activationThread != null && activationThread.IsAlive)
-                {
-                    activationThread.Join(250);
-                }
                 mouseHook.Dispose();
                 trayController.Dispose();
                 if (settingsWindow != null)
@@ -175,9 +134,45 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
                     settingsWindow.Dispose();
                 }
                 overlayCoordinator.Dispose();
+                activationWindow.Dispose();
                 dispatcher.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        private sealed class ActivationWindow : NativeWindow, IDisposable
+        {
+            private readonly Action activate;
+
+            public ActivationWindow(Action activate)
+            {
+                this.activate = activate;
+                CreateParams cp = new CreateParams();
+                cp.Caption = "ClickLight Activation";
+                cp.X = -32000;
+                cp.Y = -32000;
+                cp.Width = 1;
+                cp.Height = 1;
+                cp.Style = NativeMethods.WS_POPUP;
+                cp.ExStyle = NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
+                CreateHandle(cp);
+            }
+
+            protected override void WndProc(ref Message m)
+            {
+                if (m.Msg == SingleInstanceActivation.ActivationMessage)
+                {
+                    activate();
+                    return;
+                }
+
+                base.WndProc(ref m);
+            }
+
+            public void Dispose()
+            {
+                DestroyHandle();
+            }
         }
     }
 }

@@ -33,7 +33,12 @@ internal static class NativeMethods
         public const int WS_EX_TRANSPARENT = 0x00000020;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int WS_EX_NOACTIVATE = 0x08000000;
+        public const int WS_POPUP = unchecked((int)0x80000000);
 
+        public static readonly IntPtr HWND_BROADCAST = new IntPtr(0xffff);
+
+        public const int ASFW_ANY = -1;
+        public const int SW_RESTORE = 9;
         public const int SW_SHOWNOACTIVATE = 4;
         public const int ULW_ALPHA = 0x00000002;
         public const byte AC_SRC_OVER = 0x00;
@@ -149,6 +154,25 @@ internal static class NativeMethods
         [DllImport("user32.dll", EntryPoint = "DestroyIcon", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool DestroyIconNative(IntPtr hIcon);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern int RegisterWindowMessage(string lpString);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AllowSetForegroundWindow(int processId);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BringWindowToTop(IntPtr hWnd);
 
         public static void SetProcessDPIAwareSafe()
         {
