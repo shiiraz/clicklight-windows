@@ -10,6 +10,7 @@ param(
     [string]$CertificateThumbprint = "",
     [string]$PfxPath = "",
     [string]$PfxPassword = "",
+    [switch]$NoTimestamp,
     [switch]$SkipSign,
     [switch]$PrepareOnly
 )
@@ -166,15 +167,20 @@ if ($shouldSign) {
         throw "signtool.exe was not found. Install Windows SDK signing tools or rerun with -SkipSign."
     }
 
+    $timestampArgs = @()
+    if (-not $NoTimestamp) {
+        $timestampArgs = @("/tr", "http://timestamp.digicert.com", "/td", "SHA256")
+    }
+
     if ($CertificateThumbprint -ne "") {
-        & $signTool sign /fd SHA256 /sha1 $CertificateThumbprint /tr http://timestamp.digicert.com /td SHA256 $PackagePath
+        & $signTool sign /fd SHA256 /sha1 $CertificateThumbprint @timestampArgs $PackagePath
     }
     else {
         if ($PfxPassword -ne "") {
-            & $signTool sign /fd SHA256 /f $PfxPath /p $PfxPassword /tr http://timestamp.digicert.com /td SHA256 $PackagePath
+            & $signTool sign /fd SHA256 /f $PfxPath /p $PfxPassword @timestampArgs $PackagePath
         }
         else {
-            & $signTool sign /fd SHA256 /f $PfxPath /tr http://timestamp.digicert.com /td SHA256 $PackagePath
+            & $signTool sign /fd SHA256 /f $PfxPath @timestampArgs $PackagePath
         }
     }
 

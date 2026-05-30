@@ -78,7 +78,20 @@ powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 `
 
 Local installation requires signing. Pass either `-CertificateThumbprint` for a certificate in the local cert store, or `-PfxPath` and `-PfxPassword` for a PFX.
 
+For local-only test certificates in offline/restricted-network environments, add `-NoTimestamp`. Do not use `-NoTimestamp` for real release signing.
+
 Current local machine note: if `makeappx.exe` is missing, install the Windows SDK or MSIX Packaging Tool first. `-PrepareOnly` still validates the staged layout and manifest.
+
+The packaging script searches the Windows SDK install folders directly, so `Get-Command makeappx.exe` may return nothing even after the SDK is installed. That is fine as long as `package-msix.ps1` can create the package.
+
+Local install smoke test:
+
+```powershell
+Add-AppxPackage -Path .\out\msix\ClickLight_0.1.0.0_x64.msix
+Get-StartApps | Where-Object { $_.Name -like '*ClickLight*' }
+```
+
+Run the install command from a normal user PowerShell or by opening the MSIX in Explorer. Avoid sandboxed shells for this check; they can report `0x80070005` even when the package and signature are valid. If the package was accidentally installed from the wrong/elevated user context, remove that installed package first and reinstall as the user who will run ClickLight.
 
 Important follow-up: the current Launch at Login implementation uses the unpackaged `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` path. Before Store submission, verify it under an installed MSIX and replace it with packaged startup task behavior if the registry path is blocked or virtualized.
 

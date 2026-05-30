@@ -117,7 +117,16 @@ Create an MSIX after installing the Windows SDK/MSIX packaging tools:
 powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
 ```
 
-Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate.
+`package-msix.ps1` searches the Windows SDK install folders, so `makeappx.exe` and `signtool.exe` do not have to be on `PATH`.
+
+Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate, then installing it from a normal user PowerShell or Explorer:
+
+```powershell
+Add-AppxPackage -Path .\out\msix\ClickLight_0.1.0.0_x64.msix
+Get-StartApps | Where-Object { $_.Name -like '*ClickLight*' }
+```
+
+Avoid testing `Add-AppxPackage` from sandboxed shells. If an elevated shell installs it under the wrong user context, remove it and reinstall as the user who will launch the app.
 
 ## Scope
 
