@@ -188,7 +188,7 @@ namespace ClickLight.Windows
         private static void LaserStrokeAppendAndFadeMatchSpec()
         {
             LaserStroke stroke = new LaserStroke();
-            stroke.Points.Add(new PointF(0.0f, 0.0f));
+            stroke.AddPoint(new PointF(0.0f, 0.0f));
 
             AssertFalse(stroke.ShouldAppend(new PointF(2.0f, 0.0f)), "do not append below 2.5px");
             AssertTrue(stroke.ShouldAppend(new PointF(2.5f, 0.0f)), "append at 2.5px");

@@ -19,6 +19,8 @@ internal sealed class ClickOverlayWindow : Form
         private readonly Timer displayTimer;
         private readonly List<ClickPulse> pulses;
         private readonly List<LaserStroke> completedLaserStrokes;
+        private Rectangle? stableLaserBounds;
+        private double stableLaserBoundsUntil;
         private ClickSettings settings;
         private Rectangle screenFrame;
         private LaserCursor laserCursor;
@@ -69,14 +71,25 @@ internal sealed class ClickOverlayWindow : Form
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                displayTimer.Dispose();
+                DisposeLaserContent();
+            }
+
+            base.Dispose(disposing);
+        }
+
         public void Apply(ClickSettings newSettings)
         {
             settings = newSettings.Clone();
             if (!settings.showLaserPointer)
             {
                 laserCursor = null;
-                activeLaserStroke = null;
-                completedLaserStrokes.Clear();
+                DisposeLaserContent();
+                stableLaserBounds = null;
                 RenderFrame();
             }
         }
@@ -129,32 +142,29 @@ internal sealed class ClickOverlayWindow : Form
         {
             laserCursor = new LaserCursor(point, Clock.NowSeconds());
             StartDisplayTimer();
-            RenderFrame();
         }
 
         private void AppendLaserPoint(PointF point)
         {
             double now = Clock.NowSeconds();
-            ShowLaserCursor(point);
 
             if (activeLaserStroke == null)
             {
                 activeLaserStroke = new LaserStroke();
-                activeLaserStroke.Points.Add(point);
+                activeLaserStroke.AddPoint(point);
             }
             else if (activeLaserStroke.ShouldAppend(point))
             {
-                activeLaserStroke.Points.Add(point);
+                activeLaserStroke.AddPoint(point);
             }
 
             if (activeLaserStroke.Points.Count == 1)
             {
-                activeLaserStroke.Points.Add(point);
+                activeLaserStroke.AddPoint(point);
             }
 
             laserCursor = new LaserCursor(point, now);
             StartDisplayTimer();
-            RenderFrame();
         }
 
         private void CompleteLaserStroke()
@@ -164,7 +174,6 @@ internal sealed class ClickOverlayWindow : Form
             completedLaserStrokes.Add(activeLaserStroke);
             activeLaserStroke = null;
             StartDisplayTimer();
-            RenderFrame();
         }
 
         private void StartDisplayTimer()
@@ -187,13 +196,16 @@ internal sealed class ClickOverlayWindow : Form
         {
             double now = Clock.NowSeconds();
             pulses.RemoveAll(delegate(ClickPulse pulse) { return pulse.IsExpired(now); });
-            completedLaserStrokes.RemoveAll(delegate(LaserStroke stroke) { return stroke.IsExpired(now); });
+            RemoveExpiredLaserStrokes(now);
 
             bool hasLaserCursor = laserCursor != null && !laserCursor.IsExpired(now);
             bool hasContent = pulses.Count > 0 || hasLaserCursor || activeLaserStroke != null || completedLaserStrokes.Count > 0;
+            bool keepStableLaserSurface = stableLaserBounds.HasValue && now < stableLaserBoundsUntil;
 
-            if (!hasContent)
+            if (!hasContent && !keepStableLaserSurface)
             {
+                stableLaserBounds = null;
+                stableLaserBoundsUntil = 0.0;
                 if (Visible && IsHandleCreated)
                 {
                     RenderBlankFrame();
@@ -203,7 +215,7 @@ internal sealed class ClickOverlayWindow : Form
                 return;
             }
 
-            Rectangle localRenderBounds = ContentBounds(now);
+            Rectangle localRenderBounds = hasContent ? StableContentBounds(ContentBounds(now), now) : stableLaserBounds.Value;
             Bounds = new Rectangle(
                 screenFrame.Left + localRenderBounds.Left,
                 screenFrame.Top + localRenderBounds.Top,
@@ -272,6 +284,49 @@ internal sealed class ClickOverlayWindow : Form
             return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
         }
 
+        private Rectangle StableContentBounds(Rectangle tightBounds, double now)
+        {
+            if (activeLaserStroke == null && completedLaserStrokes.Count == 0)
+            {
+                if (!stableLaserBounds.HasValue || now >= stableLaserBoundsUntil)
+                {
+                    stableLaserBounds = null;
+                    stableLaserBoundsUntil = 0.0;
+                }
+                return tightBounds;
+            }
+
+            if (stableLaserBounds.HasValue && Contains(stableLaserBounds.Value, tightBounds))
+            {
+                stableLaserBoundsUntil = now + 0.18;
+                return stableLaserBounds.Value;
+            }
+
+            Rectangle expanded = stableLaserBounds.HasValue ? Rectangle.Union(stableLaserBounds.Value, tightBounds) : tightBounds;
+            expanded.Inflate(96, 96);
+            expanded = ClampToScreen(expanded);
+            stableLaserBounds = expanded;
+            stableLaserBoundsUntil = now + 0.18;
+            return expanded;
+        }
+
+        private Rectangle ClampToScreen(Rectangle bounds)
+        {
+            int left = Math.Max(0, bounds.Left);
+            int top = Math.Max(0, bounds.Top);
+            int right = Math.Min(screenFrame.Width, bounds.Right);
+            int bottom = Math.Min(screenFrame.Height, bounds.Bottom);
+            return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+        }
+
+        private static bool Contains(Rectangle outer, Rectangle inner)
+        {
+            return inner.Left >= outer.Left &&
+                inner.Top >= outer.Top &&
+                inner.Right <= outer.Right &&
+                inner.Bottom <= outer.Bottom;
+        }
+
         private static RectangleF PulseBounds(ClickPulse pulse)
         {
             float radius = (float)(pulse.BaseSize * 1.35 + 48.0);
@@ -280,26 +335,7 @@ internal sealed class ClickOverlayWindow : Form
 
         private static RectangleF StrokeBounds(LaserStroke stroke, float padding)
         {
-            if (stroke.Points.Count == 0)
-            {
-                return new RectangleF(0.0f, 0.0f, 1.0f, 1.0f);
-            }
-
-            float left = stroke.Points[0].X;
-            float top = stroke.Points[0].Y;
-            float right = stroke.Points[0].X;
-            float bottom = stroke.Points[0].Y;
-
-            for (int i = 1; i < stroke.Points.Count; i++)
-            {
-                PointF point = stroke.Points[i];
-                left = Math.Min(left, point.X);
-                top = Math.Min(top, point.Y);
-                right = Math.Max(right, point.X);
-                bottom = Math.Max(bottom, point.Y);
-            }
-
-            return RectangleF.FromLTRB(left - padding, top - padding, right + padding, bottom + padding);
+            return stroke.Bounds(padding);
         }
 
         private static RectangleF BoundsAround(PointF point, float radius)
@@ -351,21 +387,18 @@ internal sealed class ClickOverlayWindow : Form
             if (stroke.Points.Count < 2 || alpha <= 0.0) return;
 
             Color laserColor = UnitColor(1.0, 0.16, 0.24);
-            using (GraphicsPath path = new GraphicsPath())
+            using (Pen glow = new Pen(WithAlpha(laserColor, alpha * 0.2), 14.0f))
+            using (Pen core = new Pen(WithAlpha(laserColor, alpha), 5.0f))
             {
-                path.AddLines(stroke.Points.ToArray());
-                using (Pen glow = new Pen(WithAlpha(laserColor, alpha * 0.2), 14.0f))
-                using (Pen core = new Pen(WithAlpha(laserColor, alpha), 5.0f))
-                {
-                    glow.StartCap = LineCap.Round;
-                    glow.EndCap = LineCap.Round;
-                    glow.LineJoin = LineJoin.Round;
-                    core.StartCap = LineCap.Round;
-                    core.EndCap = LineCap.Round;
-                    core.LineJoin = LineJoin.Round;
-                    g.DrawPath(glow, path);
-                    g.DrawPath(core, path);
-                }
+                GraphicsPath path = stroke.Path();
+                glow.StartCap = LineCap.Round;
+                glow.EndCap = LineCap.Round;
+                glow.LineJoin = LineJoin.Round;
+                core.StartCap = LineCap.Round;
+                core.EndCap = LineCap.Round;
+                core.LineJoin = LineJoin.Round;
+                g.DrawPath(glow, path);
+                g.DrawPath(core, path);
             }
         }
 
@@ -520,6 +553,34 @@ internal sealed class ClickOverlayWindow : Form
                 if (memDc != IntPtr.Zero) NativeMethods.DeleteDC(memDc);
                 if (screenDc != IntPtr.Zero) NativeMethods.ReleaseDC(IntPtr.Zero, screenDc);
             }
+        }
+
+        private void RemoveExpiredLaserStrokes(double now)
+        {
+            for (int i = completedLaserStrokes.Count - 1; i >= 0; i--)
+            {
+                LaserStroke stroke = completedLaserStrokes[i];
+                if (stroke.IsExpired(now))
+                {
+                    stroke.Dispose();
+                    completedLaserStrokes.RemoveAt(i);
+                }
+            }
+        }
+
+        private void DisposeLaserContent()
+        {
+            if (activeLaserStroke != null)
+            {
+                activeLaserStroke.Dispose();
+                activeLaserStroke = null;
+            }
+
+            for (int i = 0; i < completedLaserStrokes.Count; i++)
+            {
+                completedLaserStrokes[i].Dispose();
+            }
+            completedLaserStrokes.Clear();
         }
 
         private static Color UnitColor(double r, double g, double b)
