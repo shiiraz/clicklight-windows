@@ -32,8 +32,8 @@
 
   <Applications>
     <Application
-      Id="ClickLight"
-      Executable="ClickLight.exe"
+      Id="CursorCue"
+      Executable="CursorCue.exe"
       EntryPoint="Windows.FullTrustApplication"
       uap10:RuntimeBehavior="packagedClassicApp"
       uap10:TrustLevel="mediumIL">
@@ -54,10 +54,10 @@
       <Extensions>
         <uap5:Extension
           Category="windows.startupTask"
-          Executable="ClickLight.exe"
+          Executable="CursorCue.exe"
           EntryPoint="Windows.FullTrustApplication">
           <uap5:StartupTask
-            TaskId="ClickLightStartup"
+            TaskId="CursorCueStartup"
             Enabled="false"
             DisplayName="{{DISPLAY_NAME}}" />
         </uap5:Extension>

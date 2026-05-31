@@ -12,7 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal static class TrayIconFactory
     {
@@ -64,9 +64,9 @@ internal static class TrayIconFactory
             string currentDirectory = Environment.CurrentDirectory;
             string[] candidates =
             {
-                Path.Combine(baseDirectory, "assets", "tray", "clicklight-tray.ico"),
-                Path.Combine(baseDirectory, "..", "assets", "tray", "clicklight-tray.ico"),
-                Path.Combine(currentDirectory, "assets", "tray", "clicklight-tray.ico")
+                Path.Combine(baseDirectory, "assets", "tray", "cursorcue-tray.ico"),
+                Path.Combine(baseDirectory, "..", "assets", "tray", "cursorcue-tray.ico"),
+                Path.Combine(currentDirectory, "assets", "tray", "cursorcue-tray.ico")
             };
 
             for (int i = 0; i < candidates.Length; i++)

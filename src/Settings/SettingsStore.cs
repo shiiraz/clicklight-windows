@@ -12,11 +12,12 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
     internal sealed class SettingsStore
     {
         private readonly string settingsPath;
+        private readonly string legacySettingsPath;
         private readonly bool firstRun;
         private ClickSettings current;
 
@@ -24,10 +25,12 @@ namespace ClickLight.Windows
 
         public SettingsStore()
         {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ClickLight");
+                appData,
+                "CursorCue");
             settingsPath = Path.Combine(dir, "settings.json");
+            legacySettingsPath = Path.Combine(appData, "ClickLight", "settings.json");
             current = LoadFromDisk(out firstRun);
         }
 
@@ -59,6 +62,8 @@ namespace ClickLight.Windows
 
             try
             {
+                TryMigrateLegacySettings();
+
                 if (!File.Exists(settingsPath))
                 {
                     ClickSettings defaults = ClickSettings.Defaults();
@@ -82,6 +87,28 @@ namespace ClickLight.Windows
             catch
             {
                 return ClickSettings.Defaults();
+            }
+        }
+
+        private void TryMigrateLegacySettings()
+        {
+            if (File.Exists(settingsPath) || !File.Exists(legacySettingsPath))
+            {
+                return;
+            }
+
+            try
+            {
+                string dir = Path.GetDirectoryName(settingsPath);
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.Copy(legacySettingsPath, settingsPath, false);
+            }
+            catch
+            {
             }
         }
 

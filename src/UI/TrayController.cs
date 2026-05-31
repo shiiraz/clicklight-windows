@@ -12,7 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal sealed class TrayController : IDisposable
     {
@@ -44,7 +44,7 @@ internal sealed class TrayController : IDisposable
             this.setMenuOpen = setMenuOpen;
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = TrayIconFactory.CreateIcon();
-            notifyIcon.Text = "ClickLight";
+            notifyIcon.Text = "CursorCue";
             notifyIcon.Visible = false;
         }
 
@@ -132,7 +132,7 @@ internal sealed class TrayController : IDisposable
             menu.Items.Add(test);
             menu.Items.Add(new ToolStripSeparator());
 
-            ToolStripMenuItem note = new ToolStripMenuItem("Capture note: elevated apps may require elevated ClickLight");
+            ToolStripMenuItem note = new ToolStripMenuItem("Capture note: elevated apps may require elevated CursorCue");
             note.Enabled = false;
             menu.Items.Add(note);
 
@@ -140,10 +140,10 @@ internal sealed class TrayController : IDisposable
             updates.Enabled = false;
             menu.Items.Add(updates);
 
-            menu.Items.Add(CommandItem("Quit ClickLight", quit));
+            menu.Items.Add(CommandItem("Quit CursorCue", quit));
 
             notifyIcon.ContextMenuStrip = menu;
-            notifyIcon.Text = settings.showMenuBarText ? "ClickLight - " + captureStatus() : "ClickLight";
+            notifyIcon.Text = settings.showMenuBarText ? "CursorCue - " + captureStatus() : "CursorCue";
 
             if (oldMenu != null)
             {

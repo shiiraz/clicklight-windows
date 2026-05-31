@@ -1,4 +1,4 @@
-# ClickLight QA Checklist
+# CursorCue QA Checklist
 
 Use this before publishing builds or claiming parity with the original behavior. Some tests need real human observation because Windows hooks, overlays, Smart App Control, and display scaling cannot be trusted from unit tests alone.
 
@@ -23,16 +23,16 @@ Current automated coverage:
 ## Manual Smoke Test
 
 - Build with `powershell -ExecutionPolicy Bypass -File .\build.ps1`.
-- Launch `bin\ClickLight.exe`.
+- Launch `bin\CursorCue.exe`.
 - Confirm it appears only in the notification area, not the taskbar.
 - On a fresh settings profile, confirm Settings opens automatically once so the user can find the tray app.
 - Open the tray menu.
 - Click **Test Pulse at Pointer**.
-- Launch `bin\ClickLight.exe` again while ClickLight is already running.
+- Launch `bin\CursorCue.exe` again while CursorCue is already running.
 - Confirm a second process/tray icon is not created and the existing Settings window opens or focuses.
 - Toggle **Enabled** off and confirm clicks no longer show overlays.
 - Toggle **Enabled** on and confirm overlays return.
-- Quit from **Quit ClickLight** and confirm the process exits.
+- Quit from **Quit CursorCue** and confirm the process exits.
 
 ## Common App Capture
 
@@ -65,7 +65,7 @@ For each app:
 - Open **Open Settings...**.
 - Confirm the window is approximately 760x520 and resizable down to a usable minimum.
 - Visit General, Visual Style, Event Visibility, Tray, and System panes.
-- Toggle **Enable ClickLight** and confirm tray state follows.
+- Toggle **Enable CursorCue** and confirm tray state follows.
 - Use **Preview Pulse** and confirm pulse appears at the pointer.
 - Change size/intensity/duration sliders and confirm the tray menu shows custom state where appropriate.
 - Choose each size/intensity/duration preset and confirm the corresponding slider value changes.
@@ -79,10 +79,10 @@ For each app:
 ## Persistence
 
 - Change multiple settings.
-- Quit ClickLight.
-- Relaunch ClickLight.
+- Quit CursorCue.
+- Relaunch CursorCue.
 - Confirm settings persisted.
-- Inspect `%AppData%\ClickLight\settings.json` and confirm keys are present.
+- Inspect `%AppData%\CursorCue\settings.json` and confirm keys are present.
 
 ## Multi-Monitor and DPI
 
@@ -104,7 +104,7 @@ For each setup:
 
 ## Idle Resource Check
 
-- Launch ClickLight.
+- Launch CursorCue.
 - Do not click or move the mouse for 60 seconds.
 - Confirm CPU is approximately 0%.
 - Trigger a few pulses, then wait for animations to finish.
@@ -127,5 +127,5 @@ For each setup:
 - Long drag strokes.
 - Middle/extra mouse button drag movement should show drag visuals, while button down/up pulses are only specified for left/right.
 - Sleep/resume.
-- Display plug/unplug while ClickLight is running.
-- Restart Explorer while ClickLight is running.
+- Display plug/unplug while CursorCue is running.
+- Restart Explorer while CursorCue is running.

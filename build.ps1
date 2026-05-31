@@ -4,12 +4,15 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SourceRoot = Join-Path $Root "src"
 $Sources = Get-ChildItem -Path $SourceRoot -Filter *.cs -Recurse | Sort-Object FullName | ForEach-Object { $_.FullName }
 $OutDir = Join-Path $Root "bin"
-$OutFile = Join-Path $OutDir "ClickLight.exe"
-$IconFile = Join-Path $Root "assets\tray\clicklight-tray.ico"
+$OutFile = Join-Path $OutDir "CursorCue.exe"
+$LegacyOutFile = Join-Path $OutDir "ClickLight.exe"
+$IconFile = Join-Path $Root "assets\tray\cursorcue-tray.ico"
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
-if (Test-Path $OutFile) {
-    Remove-Item $OutFile -Force
+foreach ($Candidate in @($OutFile, $LegacyOutFile)) {
+    if (Test-Path $Candidate) {
+        Remove-Item $Candidate -Force
+    }
 }
 
 Add-Type -AssemblyName Microsoft.CSharp
@@ -43,6 +46,11 @@ if ($Results.Errors.HasErrors) {
 
 $AssetSource = Join-Path $Root "assets"
 if (Test-Path $AssetSource) {
+    $AssetTarget = Join-Path $OutDir "assets"
+    if (Test-Path $AssetTarget) {
+        Remove-Item $AssetTarget -Recurse -Force
+    }
+
     Copy-Item -Path $AssetSource -Destination $OutDir -Recurse -Force
 }
 

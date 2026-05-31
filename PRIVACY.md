@@ -1,34 +1,34 @@
 # Privacy
 
-ClickLight is a local Windows tray utility for showing visual click highlights during demos, meetings, recordings, and screen shares.
+CursorCue is a local Windows tray utility for showing visual click highlights during demos, meetings, recordings, and screen shares.
 
 ## Data Collection
 
-ClickLight does not collect, transmit, sell, or share personal data.
+CursorCue does not collect, transmit, sell, or share personal data.
 
 ## Mouse Input
 
-ClickLight uses a Windows low-level mouse hook so it can detect mouse activity across normal desktop apps and draw visual overlays.
+CursorCue uses a Windows low-level mouse hook so it can detect mouse activity across normal desktop apps and draw visual overlays.
 
 Mouse events are used only in memory to render the current visual effect. Click locations are not logged, uploaded, or saved.
 
 ## Settings
 
-ClickLight stores local preferences in:
+CursorCue stores local preferences in:
 
 ```text
-%AppData%\ClickLight\settings.json
+%AppData%\CursorCue\settings.json
 ```
 
 This file contains settings such as enabled state, visual size, intensity, duration, color preset, and which click types are shown.
 
 ## Network
 
-ClickLight does not make network requests.
+CursorCue does not make network requests.
 
 ## Keyboard Input
 
-ClickLight does not capture keyboard input.
+CursorCue does not capture keyboard input.
 
 ## Contact
 

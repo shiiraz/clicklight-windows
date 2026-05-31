@@ -12,7 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal sealed class MouseHook : IDisposable
     {

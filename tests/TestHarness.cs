@@ -1,7 +1,7 @@
 using System;
 using System.Drawing;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
     internal static class TestHarness
     {
@@ -204,8 +204,8 @@ namespace ClickLight.Windows
 
         private static void StartupCommandQuotesUnpackagedExecutable()
         {
-            string command = LaunchAtLoginController.BuildRegistryStartupCommand(@"C:\Tools\ClickLight\ClickLight.exe");
-            AssertEqual(@"""C:\Tools\ClickLight\ClickLight.exe""", command, "unpackaged startup command");
+            string command = LaunchAtLoginController.BuildRegistryStartupCommand(@"C:\Tools\CursorCue\CursorCue.exe");
+            AssertEqual(@"""C:\Tools\CursorCue\CursorCue.exe""", command, "unpackaged startup command");
         }
 
         private static void AssertTrue(bool value, string message)

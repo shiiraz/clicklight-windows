@@ -12,13 +12,13 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal sealed class LaunchAtLoginController
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string ValueName = "ClickLight";
-        private const string StartupTaskId = "ClickLightStartup";
+        private const string ValueName = "CursorCue";
+        private const string StartupTaskId = "CursorCueStartup";
 
         public bool IsEnabled
         {

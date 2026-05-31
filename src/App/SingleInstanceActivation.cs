@@ -12,12 +12,12 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
     internal static class SingleInstanceActivation
     {
-        public const string MutexName = "Local\\ClickLight.Windows.SingleInstance";
-        private const string ActivationMessageName = "ClickLight.Windows.ActivateSettings";
+        public const string MutexName = "Local\\CursorCue.Windows.SingleInstance";
+        private const string ActivationMessageName = "CursorCue.Windows.ActivateSettings";
         private static int activationMessage;
 
         public static void SignalExistingInstance()

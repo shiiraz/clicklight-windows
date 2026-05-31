@@ -12,9 +12,9 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
-internal sealed class ClickLightApplicationContext : ApplicationContext
+internal sealed class CursorCueApplicationContext : ApplicationContext
     {
         private readonly SettingsStore settingsStore;
         private readonly LaunchAtLoginController launchAtLogin;
@@ -26,7 +26,7 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
         private SettingsWindow settingsWindow;
         private bool trayMenuOpen;
 
-        public ClickLightApplicationContext()
+        public CursorCueApplicationContext()
         {
             settingsStore = new SettingsStore();
             launchAtLogin = new LaunchAtLoginController();
@@ -149,7 +149,7 @@ internal sealed class ClickLightApplicationContext : ApplicationContext
             {
                 this.activate = activate;
                 CreateParams cp = new CreateParams();
-                cp.Caption = "ClickLight Activation";
+                cp.Caption = "CursorCue Activation";
                 cp.X = -32000;
                 cp.Y = -32000;
                 cp.Width = 1;

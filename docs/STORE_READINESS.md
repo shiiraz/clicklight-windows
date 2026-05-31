@@ -1,6 +1,6 @@
 # Microsoft Store Readiness
 
-This checklist is for preparing ClickLight for Microsoft Store submission. It intentionally excludes final image assets for now.
+This checklist is for preparing CursorCue for Microsoft Store submission. It intentionally excludes final image assets for now.
 
 ## Current Recommendation
 
@@ -87,13 +87,13 @@ The packaging script searches the Windows SDK install folders directly, so `Get-
 Local install smoke test:
 
 ```powershell
-Add-AppxPackage -Path .\out\msix\ClickLight_0.1.0.0_x64.msix
-Get-StartApps | Where-Object { $_.Name -like '*ClickLight*' }
+Add-AppxPackage -Path .\out\msix\CursorCue_0.1.0.0_x64.msix
+Get-StartApps | Where-Object { $_.Name -like '*CursorCue*' }
 ```
 
-Run the install command from a normal user PowerShell or by opening the MSIX in Explorer. Avoid sandboxed shells for this check; they can report `0x80070005` even when the package and signature are valid. If the package was accidentally installed from the wrong/elevated user context, remove that installed package first and reinstall as the user who will run ClickLight.
+Run the install command from a normal user PowerShell or by opening the MSIX in Explorer. Avoid sandboxed shells for this check; they can report `0x80070005` even when the package and signature are valid. If the package was accidentally installed from the wrong/elevated user context, remove that installed package first and reinstall as the user who will run CursorCue.
 
-Launch at Login uses the classic per-user Run key only for unpackaged builds. MSIX builds declare a `windows.startupTask` manifest extension and control it through the Windows StartupTask API, because MSIX virtualizes direct Run-key writes. If Windows reports the task as disabled by the user, ClickLight must send the user to Startup Apps instead of forcing it back on. Verify this behavior during final Store QA with a full restart, not only sign-out/sign-in.
+Launch at Login uses the classic per-user Run key only for unpackaged builds. MSIX builds declare a `windows.startupTask` manifest extension and control it through the Windows StartupTask API, because MSIX virtualizes direct Run-key writes. If Windows reports the task as disabled by the user, CursorCue must send the user to Startup Apps instead of forcing it back on. Verify this behavior during final Store QA with a full restart, not only sign-out/sign-in.
 
 ## Store Listing Draft
 
@@ -106,11 +106,17 @@ Native Windows tray app for live click highlights.
 Description:
 
 ```text
-ClickLight is a small Windows tray utility that makes mouse clicks easier to follow during live demos, meetings, UX reviews, tutorials, and recordings.
+CursorCue is a small Windows tray utility that makes mouse clicks easier to follow during live demos, meetings, UX reviews, tutorials, and recordings.
 
 It highlights press, release, right-click, and drag interactions, includes an optional laser pointer mode, and stays light when idle by drawing only while visual effects are active.
 
-ClickLight runs locally, stores settings on your device, and does not collect or transmit personal data.
+CursorCue runs locally, stores settings on your device, and does not collect or transmit personal data.
+```
+
+Credit note for repository/release notes:
+
+```text
+Inspired by ClickLight for macOS by Aurora Scharff. CursorCue is an independent Windows rewrite, not an official port.
 ```
 
 Feature bullets:
@@ -140,7 +146,7 @@ tutorial
 Additional system requirement:
 
 ```text
-Some elevated apps may not expose clicks to non-elevated ClickLight because of Windows UIPI protections.
+Some elevated apps may not expose clicks to non-elevated CursorCue because of Windows UIPI protections.
 ```
 
 ## Asset Requirements To Hand Off
@@ -160,23 +166,23 @@ Use these with an image/design agent later.
 ### App Icon
 
 ```text
-Create a polished Windows 11 app icon for "ClickLight", a native tray utility that highlights mouse clicks during demos. Visual concept: clean cursor pointer with a subtle cyan click ripple/ring, minimal, modern, friendly, high contrast, works at 16px tray size and 256px app size. Avoid text, gradients that become muddy, mascot characters, and overly detailed UI screenshots. Provide transparent PNG and scalable source.
+Create a polished Windows 11 app icon for "CursorCue", a native tray utility that highlights mouse clicks during demos. Visual concept: clean cursor pointer with a subtle cyan click ripple/ring, minimal, modern, friendly, high contrast, works at 16px tray size and 256px app size. Avoid text, gradients that become muddy, mascot characters, and overly detailed UI screenshots. Provide transparent PNG and scalable source.
 ```
 
 ### Store Tile
 
 ```text
-Create a Microsoft Store 1:1 tile image for ClickLight at 300x300. Show a crisp cursor pointer and click ripple on a calm Windows 11-style background. The image should feel lightweight, precise, and demo-focused. No marketing copy. Keep the main symbol centered and readable at small sizes.
+Create a Microsoft Store 1:1 tile image for CursorCue at 300x300. Show a crisp cursor pointer and click ripple on a calm Windows 11-style background. The image should feel lightweight, precise, and demo-focused. No marketing copy. Keep the main symbol centered and readable at small sizes.
 ```
 
 ### Screenshots
 
 ```text
-Create a clean 1366x768 Windows 11 desktop screenshot mockup showing ClickLight in use during a product demo. The cursor is clicking a small UI button and a tasteful cyan ripple is visible around the pointer. Include the tray menu or settings window in some screenshots, but keep the app focused and uncluttered. Avoid fake claims, heavy marketing text, and unrelated UI.
+Create a clean 1366x768 Windows 11 desktop screenshot mockup showing CursorCue in use during a product demo. The cursor is clicking a small UI button and a tasteful cyan ripple is visible around the pointer. Include the tray menu or settings window in some screenshots, but keep the app focused and uncluttered. Avoid fake claims, heavy marketing text, and unrelated UI.
 ```
 
 ### Hero Art
 
 ```text
-Create 1920x1080 Microsoft Store hero art for ClickLight. Show a Windows 11 desktop demo scene where a cursor click is clearly highlighted by an elegant ripple. The composition should communicate "easy to follow live demos" without text. Keep important visual elements in the top two-thirds and leave the lower third clean for Store overlays.
+Create 1920x1080 Microsoft Store hero art for CursorCue. Show a Windows 11 desktop demo scene where a cursor click is clearly highlighted by an elegant ripple. The composition should communicate "easy to follow live demos" without text. Keep important visual elements in the top two-thirds and leave the lower third clean for Store overlays.
 ```

@@ -12,7 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal sealed class SettingsWindow : Form
     {
@@ -41,7 +41,7 @@ internal sealed class SettingsWindow : Form
             this.previewPulse = previewPulse;
 
             AutoScaleMode = AutoScaleMode.None;
-            Text = "ClickLight Settings";
+            Text = "CursorCue Settings";
             windowIcon = TrayIconFactory.CreateIcon();
             Icon = windowIcon;
             Size = new Size(S(760), S(520));
@@ -166,7 +166,7 @@ internal sealed class SettingsWindow : Form
             switch (paneList.SelectedIndex)
             {
                 case 0:
-                    AddHeader("General", "Toggle ClickLight and restore defaults.");
+                    AddHeader("General", "Toggle CursorCue and restore defaults.");
                     BuildGeneralPane();
                     break;
                 case 1:
@@ -202,7 +202,7 @@ internal sealed class SettingsWindow : Form
                 if (updatingControls) return;
                 ApplySetting(delegate(ClickSettings s) { s.isEnabled = enabled.Checked; }, false);
             };
-            AddRow(enableCard, 18, "Enable ClickLight", "Show pulse highlights on every click.", enabled);
+            AddRow(enableCard, 18, "Enable CursorCue", "Show pulse highlights on every click.", enabled);
 
             Panel resetCard = AddCard(92);
             Button reset = new Button();
@@ -214,7 +214,7 @@ internal sealed class SettingsWindow : Form
                 DialogResult result = MessageBox.Show(
                     this,
                     "Restore size, intensity, duration, color, and visibility toggles to their defaults?",
-                    "Reset ClickLight settings?",
+                    "Reset CursorCue settings?",
                     MessageBoxButtons.OKCancel,
                     MessageBoxIcon.Warning);
                 if (result == DialogResult.OK)
@@ -398,7 +398,7 @@ internal sealed class SettingsWindow : Form
                     }
                     BuildSelectedPane();
                 };
-                AddRow(startupCard, 18, "Launch at Login", "Open ClickLight automatically after signing in.", launch);
+                AddRow(startupCard, 18, "Launch at Login", "Open CursorCue automatically after signing in.", launch);
             }
 
             Panel captureCard = AddCard(156);

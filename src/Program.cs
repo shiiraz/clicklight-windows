@@ -12,7 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace ClickLight.Windows
+namespace CursorCue.Windows
 {
 internal static class Program
     {
@@ -32,7 +32,7 @@ internal static class Program
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 
-                using (ClickLightApplicationContext context = new ClickLightApplicationContext())
+                using (CursorCueApplicationContext context = new CursorCueApplicationContext())
                 {
                     Application.Run(context);
                 }

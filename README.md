@@ -1,14 +1,16 @@
-# ClickLight
+# CursorCue
 
 Native Windows 11 tray utility that highlights mouse clicks during live demos, screen sharing, UX reviews, and recordings.
 
-ClickLight is intentionally small: it lives in the notification area, draws click highlights only when needed, and avoids a permanent render loop while idle.
+CursorCue is intentionally small: it lives in the notification area, draws click highlights only when needed, and avoids a permanent render loop while idle.
 
-This is an early Windows port. It was built from the behavior and visual timing of the original ClickLight app, then cleaned up into a Windows-first repository. Maintenance is best-effort.
+CursorCue is an early Windows app built from the behavior and visual timing of ClickLight for macOS, then cleaned up into a Windows-first repository. It is an independent rewrite, not an official ClickLight port. Maintenance is best-effort.
 
 ## Origin and Credits
 
-This Windows port is derived from the original macOS ClickLight project by Aurora Scharff: https://github.com/aurorascharff/ClickLight
+CursorCue began from a fork of Aurora Scharff's MIT-licensed ClickLight for macOS: https://github.com/aurorascharff/ClickLight
+
+The Windows app is maintained independently and may diverge, but the original project remains the behavioral and visual inspiration.
 
 The original MIT license notice is retained in `LICENSE`.
 
@@ -29,7 +31,7 @@ Implemented:
 - Settings Preview Pulse and Reset to Defaults.
 - Per-monitor overlay windows with display-change rebuilds.
 - First launch opens Settings so Store/Start users can see where the app lives; later launches stay tray-only.
-- Single-instance launch behavior: reopening ClickLight focuses Settings instead of creating a second tray process.
+- Single-instance launch behavior: reopening CursorCue focuses Settings instead of creating a second tray process.
 
 Not finished yet:
 
@@ -48,10 +50,10 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 The executable is written to:
 
 ```text
-bin\ClickLight.exe
+bin\CursorCue.exe
 ```
 
-Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button. On a fresh install, the Settings window opens once; after that ClickLight starts quietly in the tray.
+Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button. On a fresh install, the Settings window opens once; after that CursorCue starts quietly in the tray.
 
 ## Local Development
 
@@ -65,12 +67,12 @@ Build and run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
-.\bin\ClickLight.exe
+.\bin\CursorCue.exe
 ```
 
-ClickLight runs from the notification area. Use **Quit ClickLight** from the tray menu before rebuilding; otherwise `bin\ClickLight.exe` may be locked by the running process.
+CursorCue runs from the notification area. Use **Quit CursorCue** from the tray menu before rebuilding; otherwise `bin\CursorCue.exe` may be locked by the running process.
 
-If ClickLight is already running, launching `ClickLight.exe` again focuses the existing Settings window instead of starting another copy.
+If CursorCue is already running, launching `CursorCue.exe` again focuses the existing Settings window instead of starting another copy.
 
 For a clean rebuild, delete `bin\` and run the build script again.
 
@@ -87,7 +89,7 @@ Source layout:
 
 Manual checks before release:
 
-- Launch from `bin\ClickLight.exe`, open the tray menu, and quit cleanly.
+- Launch from `bin\CursorCue.exe`, open the tray menu, and quit cleanly.
 - Open Settings and check each pane.
 - Test press, release, right-click, drag, and laser pointer mode in common apps.
 - Use **Test Pulse at Pointer** from the tray.
@@ -119,35 +121,35 @@ powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -Sk
 
 `package-msix.ps1` searches the Windows SDK install folders, so `makeappx.exe` and `signtool.exe` do not have to be on `PATH`.
 
-Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate, then installing it from a normal user PowerShell or Explorer:
+Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate whose subject matches the manifest publisher. If you change the default publisher, create a matching test certificate before signing. Then install it from a normal user PowerShell or Explorer:
 
 ```powershell
-Add-AppxPackage -Path .\out\msix\ClickLight_0.1.0.0_x64.msix
-Get-StartApps | Where-Object { $_.Name -like '*ClickLight*' }
+Add-AppxPackage -Path .\out\msix\CursorCue_0.1.0.0_x64.msix
+Get-StartApps | Where-Object { $_.Name -like '*CursorCue*' }
 ```
 
 Avoid testing `Add-AppxPackage` from sandboxed shells. If an elevated shell installs it under the wrong user context, remove it and reinstall as the user who will launch the app.
 
 ## Scope
 
-ClickLight is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
+CursorCue is not trying to become a presentation suite. The target is a focused, native click highlighter with polished timing, low idle overhead, and minimal UI.
 
 ## Settings
 
 Settings are persisted as JSON at:
 
 ```text
-%AppData%\ClickLight\settings.json
+%AppData%\CursorCue\settings.json
 ```
 
-The JSON keys are intentionally stable: `isEnabled`, `showPress`, `showRelease`, `showRightClick`, `showDrag`, `showLaserPointer`, `showMenuBarText`, `size`, `intensity`, `duration`, `colorPreset`, `customColorRed`, `customColorGreen`, and `customColorBlue`.
+The JSON keys are intentionally stable and still match the ClickLight-derived settings schema: `isEnabled`, `showPress`, `showRelease`, `showRightClick`, `showDrag`, `showLaserPointer`, `showMenuBarText`, `size`, `intensity`, `duration`, `colorPreset`, `customColorRed`, `customColorGreen`, and `customColorBlue`.
 
 ## Known Windows limitations
 
-- Clicks in elevated processes may not be visible to a non-elevated ClickLight process because of UIPI.
+- Clicks in elevated processes may not be visible to a non-elevated CursorCue process because of UIPI.
 - Exclusive fullscreen apps may cover or bypass normal topmost overlays.
 - Mixed-DPI and unusual multi-monitor arrangements need explicit testing and hardening.
-- Smart App Control may block local builds because `bin\ClickLight.exe` is currently unsigned and has no reputation. There is no per-app bypass for Smart App Control; proper release builds should be signed with a trusted code-signing certificate.
+- Smart App Control may block local builds because `bin\CursorCue.exe` is currently unsigned and has no reputation. There is no per-app bypass for Smart App Control; proper release builds should be signed with a trusted code-signing certificate.
 
 ## Maintenance
 
@@ -163,7 +165,7 @@ This Windows port is maintained best-effort. Some implementation work is agent-a
 | Single instance | Named mutex + named activation event | A second launch exits immediately after signaling the running tray process to open Settings. This avoids duplicate tray icons without adding IPC dependencies or idle polling. |
 | Global input | `WH_MOUSE_LL` | Matches the requested system-wide, non-blocking capture model. The hook callback converts events and returns immediately. |
 | Overlay rendering | Per-monitor click-through layered HWNDs + GDI+ into `UpdateLayeredWindow` | Direct2D would be a stronger long-term renderer, but GDI+ is dependency-free here and can faithfully port the pulse geometry/easing. The overlay timer is stopped whenever there is nothing to draw. |
-| Persistence | JSON in `%AppData%\ClickLight` | Human-readable, easy to inspect, and the schema preserves the original setting keys. |
+| Persistence | JSON in `%AppData%\CursorCue` with one-time migration from `%AppData%\ClickLight` if present | Human-readable, easy to inspect, and the schema preserves the original setting keys while avoiding old product branding for new installs. |
 | Settings UI | WinForms native window | WPF has stronger styling options, but WinForms keeps one build path and supports the 760x520 layout target without adding another runtime or SDK requirement. |
 | Launch at login | Classic Run key for unpackaged builds; MSIX `startupTask` extension for packaged builds | MSIX virtualizes direct Run-key writes, so Store builds must use the Windows-supported startup task path. The unpackaged dev build keeps the simple per-user Run key. |
 | Store packaging | Manual MSIX layout + MakeAppx script | This keeps packaging explicit for a small WinForms app and avoids taking a Visual Studio packaging-project dependency. Store builds must replace the local placeholder package identity with Partner Center values. |

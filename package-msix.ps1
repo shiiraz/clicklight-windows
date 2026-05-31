@@ -1,9 +1,9 @@
 param(
     [string]$Version = "0.1.0.0",
-    [string]$PackageName = "ClickLight.Windows",
-    [string]$Publisher = "CN=ClickLight Development",
-    [string]$PublisherDisplayName = "ClickLight",
-    [string]$DisplayName = "ClickLight",
+    [string]$PackageName = "CursorCue.Windows",
+    [string]$Publisher = "CN=CursorCue Development",
+    [string]$PublisherDisplayName = "CursorCue",
+    [string]$DisplayName = "CursorCue",
     [string]$Description = "Native Windows tray app for live click highlights.",
     [ValidateSet("x64", "x86", "arm64")]
     [string]$Architecture = "x64",
@@ -22,7 +22,7 @@ $OutRoot = Join-Path $Root "out\msix"
 $LayoutDir = Join-Path $OutRoot "layout"
 $ManifestTemplate = Join-Path $Root "packaging\msix\AppxManifest.xml.template"
 $ManifestOut = Join-Path $LayoutDir "AppxManifest.xml"
-$PackagePath = Join-Path $OutRoot ("ClickLight_{0}_{1}.msix" -f $Version, $Architecture)
+$PackagePath = Join-Path $OutRoot ("CursorCue_{0}_{1}.msix" -f $Version, $Architecture)
 
 function Find-SdkTool($toolName) {
     $command = Get-Command $toolName -ErrorAction SilentlyContinue
@@ -55,13 +55,13 @@ function Escape-Xml($value) {
     return [System.Security.SecurityElement]::Escape($value)
 }
 
-function New-ImageAsset($sourcePath, $targetPath, $width, $height) {
+function New-ImageAsset($sourcePath, $targetPath, $width, $height, $paddingRatio = 0.0) {
     Add-Type -AssemblyName System.Drawing
 
     $targetDir = Split-Path -Parent $targetPath
     New-Item -ItemType Directory -Force $targetDir | Out-Null
 
-    $source = [System.Drawing.Image]::FromFile($sourcePath)
+    $source = [System.Drawing.Bitmap]::FromFile($sourcePath)
     try {
         $bitmap = New-Object System.Drawing.Bitmap $width, $height, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
         try {
@@ -73,16 +73,18 @@ function New-ImageAsset($sourcePath, $targetPath, $width, $height) {
                 $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
                 $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
 
-                $padding = [Math]::Max(0, [Math]::Round([Math]::Min($width, $height) * 0.10))
+                $sourceBounds = Get-AlphaBounds $source
+                $padding = [Math]::Max(0, [Math]::Round([Math]::Min($width, $height) * $paddingRatio))
                 $maxWidth = [Math]::Max(1, $width - ($padding * 2))
                 $maxHeight = [Math]::Max(1, $height - ($padding * 2))
-                $scale = [Math]::Min($maxWidth / $source.Width, $maxHeight / $source.Height)
-                $drawWidth = [Math]::Max(1, [Math]::Round($source.Width * $scale))
-                $drawHeight = [Math]::Max(1, [Math]::Round($source.Height * $scale))
+                $scale = [Math]::Min($maxWidth / $sourceBounds.Width, $maxHeight / $sourceBounds.Height)
+                $drawWidth = [Math]::Max(1, [Math]::Round($sourceBounds.Width * $scale))
+                $drawHeight = [Math]::Max(1, [Math]::Round($sourceBounds.Height * $scale))
                 $x = [Math]::Round(($width - $drawWidth) / 2)
                 $y = [Math]::Round(($height - $drawHeight) / 2)
+                $destination = New-Object System.Drawing.Rectangle $x, $y, $drawWidth, $drawHeight
 
-                $graphics.DrawImage($source, $x, $y, $drawWidth, $drawHeight)
+                $graphics.DrawImage($source, $destination, $sourceBounds, [System.Drawing.GraphicsUnit]::Pixel)
                 $bitmap.Save($targetPath, [System.Drawing.Imaging.ImageFormat]::Png)
             }
             finally {
@@ -98,11 +100,37 @@ function New-ImageAsset($sourcePath, $targetPath, $width, $height) {
     }
 }
 
+function Get-AlphaBounds($bitmap) {
+    $minX = $bitmap.Width
+    $minY = $bitmap.Height
+    $maxX = -1
+    $maxY = -1
+
+    for ($y = 0; $y -lt $bitmap.Height; $y++) {
+        for ($x = 0; $x -lt $bitmap.Width; $x++) {
+            if ($bitmap.GetPixel($x, $y).A -le 10) {
+                continue
+            }
+
+            if ($x -lt $minX) { $minX = $x }
+            if ($y -lt $minY) { $minY = $y }
+            if ($x -gt $maxX) { $maxX = $x }
+            if ($y -gt $maxY) { $maxY = $y }
+        }
+    }
+
+    if ($maxX -lt 0) {
+        return New-Object System.Drawing.Rectangle 0, 0, $bitmap.Width, $bitmap.Height
+    }
+
+    return New-Object System.Drawing.Rectangle $minX, $minY, ($maxX - $minX + 1), ($maxY - $minY + 1)
+}
+
 function Replace-Token($content, $token, $value) {
     return $content.Replace("{{" + $token + "}}", (Escape-Xml $value))
 }
 
-Write-Host "Building ClickLight..."
+Write-Host "Building CursorCue..."
 & (Join-Path $Root "build.ps1")
 
 if (Test-Path $LayoutDir) {
@@ -111,13 +139,13 @@ if (Test-Path $LayoutDir) {
 New-Item -ItemType Directory -Force $LayoutDir | Out-Null
 New-Item -ItemType Directory -Force $OutRoot | Out-Null
 
-Copy-Item -Path (Join-Path $Root "bin\ClickLight.exe") -Destination $LayoutDir -Force
+Copy-Item -Path (Join-Path $Root "bin\CursorCue.exe") -Destination $LayoutDir -Force
 Copy-Item -Path (Join-Path $Root "bin\assets") -Destination $LayoutDir -Recurse -Force
 
 $assetDir = Join-Path $LayoutDir "Assets"
-$logoSource = Join-Path $Root "assets\logo\clicklight-logo-clean-1024.png"
+$logoSource = Join-Path $Root "assets\logo\cursorcue-logo-clean-1024.png"
 if (-not (Test-Path $logoSource)) {
-    $logoSource = Join-Path $Root "assets\tray\clicklight-tray-256.png"
+    $logoSource = Join-Path $Root "assets\tray\cursorcue-tray-256.png"
 }
 
 New-ImageAsset $logoSource (Join-Path $assetDir "StoreLogo.png") 50 50
@@ -125,8 +153,8 @@ New-ImageAsset $logoSource (Join-Path $assetDir "Square44x44Logo.png") 44 44
 New-ImageAsset $logoSource (Join-Path $assetDir "Square150x150Logo.png") 150 150
 New-ImageAsset $logoSource (Join-Path $assetDir "SmallTile.png") 71 71
 New-ImageAsset $logoSource (Join-Path $assetDir "LargeTile.png") 310 310
-New-ImageAsset $logoSource (Join-Path $assetDir "Wide310x150Logo.png") 310 150
-New-ImageAsset $logoSource (Join-Path $assetDir "SplashScreen.png") 620 300
+New-ImageAsset $logoSource (Join-Path $assetDir "Wide310x150Logo.png") 310 150 0.08
+New-ImageAsset $logoSource (Join-Path $assetDir "SplashScreen.png") 620 300 0.08
 
 $manifest = Get-Content $ManifestTemplate -Raw
 $manifest = Replace-Token $manifest "PACKAGE_NAME" $PackageName
