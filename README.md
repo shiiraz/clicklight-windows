@@ -25,6 +25,8 @@ The original MIT license notice is retained in `LICENSE`.
 
 Privacy notes are in `PRIVACY.md`.
 
+Contributing notes are in `CONTRIBUTING.md`.
+
 ## Status
 
 Implemented:
@@ -63,6 +65,8 @@ bin\CursorCue.exe
 ```
 
 Run it from PowerShell or Explorer. It lives in the notification area and does not create a taskbar button. On a fresh install, the Settings window opens once; after that CursorCue starts quietly in the tray.
+
+No signing is required for local source builds. Signing is only needed if you want to install an MSIX package locally instead of running `bin\CursorCue.exe` directly.
 
 ## Local Development
 
@@ -108,7 +112,7 @@ Manual checks before release:
 
 For the fuller manual checklist, see `docs/QA.md`.
 
-For Microsoft Store preparation notes, see `docs/STORE_READINESS.md`.
+For contributing guidelines, see `CONTRIBUTING.md`.
 
 Automated checks:
 
@@ -116,36 +120,7 @@ Automated checks:
 powershell -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
 ```
 
-Prepare the MSIX layout:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -PrepareOnly
-```
-
-Create an MSIX after installing the Windows SDK/MSIX packaging tools:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
-```
-
-By default, `package-msix.ps1` uses a local development package identity. For Microsoft Store submissions, pass the package identity values from Partner Center:
-
-```text
-Package/Identity/Name: <Partner Center package name>
-Package/Identity/Publisher: <Partner Center publisher>
-Package/Properties/PublisherDisplayName: <Publisher display name>
-```
-
-`package-msix.ps1` searches the Windows SDK install folders, so `makeappx.exe` and `signtool.exe` do not have to be on `PATH`.
-
-Local install testing requires signing the package with a trusted or developer certificate whose subject matches the manifest publisher. For local test packages, override the identity to match your dev certificate. Then install it from a normal user PowerShell or Explorer:
-
-```powershell
-Add-AppxPackage -Path .\out\msix\CursorCue_0.1.0.0_x64.msix
-Get-StartApps | Where-Object { $_.Name -like '*CursorCue*' }
-```
-
-Avoid testing `Add-AppxPackage` from sandboxed shells. If an elevated shell installs it under the wrong user context, remove it and reinstall as the user who will launch the app.
+Packaging is optional for contributors. Normal development does not require MSIX packaging or signing. For maintainer packaging notes, see `docs/STORE_READINESS.md`.
 
 ## Scope
 
