@@ -209,13 +209,15 @@ internal sealed class ClickOverlayWindow : Form
                 return;
             }
 
-            bool hasLaserContent = settings.showLaserPointer &&
-                (hasLaserCursor || activeLaserStroke != null || completedLaserStrokes.Count > 0);
+            bool hasLaserStrokeContent = settings.showLaserPointer &&
+                (activeLaserStroke != null || completedLaserStrokes.Count > 0);
 
             // Laser strokes keep a fixed monitor-sized surface while active. Moving
             // a layered HWND mid-stroke can produce a one-frame offset on Windows.
-            Rectangle localRenderBounds = hasLaserContent
-                ? new Rectangle(0, 0, screenFrame.Width, screenFrame.Height)
+            // Keep it one pixel short of fullscreen so Focus Assist does not treat
+            // the click-through overlay as a fullscreen app.
+            Rectangle localRenderBounds = hasLaserStrokeContent
+                ? LaserStrokeRenderBounds()
                 : ContentBounds(now);
             Rectangle targetBounds = new Rectangle(
                 screenFrame.Left + localRenderBounds.Left,
@@ -284,6 +286,23 @@ internal sealed class ClickOverlayWindow : Form
             int bottom = Math.Min(screenFrame.Height, (int)Math.Ceiling(contentBounds.Bottom));
 
             return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+        }
+
+        private Rectangle LaserStrokeRenderBounds()
+        {
+            int width = Math.Max(1, screenFrame.Width);
+            int height = Math.Max(1, screenFrame.Height);
+
+            if (height > 1)
+            {
+                height -= 1;
+            }
+            else if (width > 1)
+            {
+                width -= 1;
+            }
+
+            return new Rectangle(0, 0, width, height);
         }
 
         private static RectangleF PulseBounds(ClickPulse pulse)
