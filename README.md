@@ -1,4 +1,8 @@
-# CursorCue
+<p align="center">
+  <img src="assets/logo/cursorcue-logo-clean-128.png" width="96" height="96" alt="CursorCue icon">
+</p>
+
+<h1 align="center">CursorCue</h1>
 
 Native Windows 11 tray utility that highlights mouse clicks during live demos, screen sharing, UX reviews, and recordings.
 
@@ -8,9 +12,7 @@ CursorCue is an early Windows app built from the behavior and visual timing of C
 
 ## Demo
 
-[![CursorCue demo](assets/demo/cursorcue-demo-poster.png)](assets/demo/cursorcue-demo.mp4)
-
-Click the preview to watch CursorCue in action.
+Demo video coming soon.
 
 ## Origin and Credits
 
