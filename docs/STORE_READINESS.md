@@ -54,6 +54,17 @@ This repo includes a command-line MSIX scaffold:
 - `packaging/msix/AppxManifest.xml.template`
 - `package-msix.ps1`
 
+Partner Center assigns Store-specific identity values after reserving a product name. Use those values for Store packages, but do not copy another publisher's values:
+
+```text
+Package/Identity/Name: <Partner Center package name>
+Package/Identity/Publisher: <Partner Center publisher>
+Package/Properties/PublisherDisplayName: <Publisher display name>
+Store ID: <Store ID>
+Store URL: https://apps.microsoft.com/detail/<Store ID>
+Store protocol link: ms-windows-store://pdp/?productid=<Store ID>
+```
+
 Prepare the package layout without SDK tools:
 
 ```powershell
@@ -66,17 +77,30 @@ Create an MSIX after installing the Windows SDK/MSIX packaging tools:
 powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
 ```
 
-For Partner Center, replace the local defaults with the package identity values from the reserved Store app:
+Store-upload packages can be left unsigned because Microsoft Store signs MSIX packages during submission. Pass the Partner Center identity explicitly when building a Store upload:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 `
   -Version 0.1.0.0 `
-  -PackageName "<Partner Center package/name value>" `
-  -Publisher "<Partner Center publisher value>" `
-  -PublisherDisplayName "<publisher display name>"
+  -PackageName "<Partner Center package name>" `
+  -Publisher "<Partner Center publisher>" `
+  -PublisherDisplayName "<Publisher display name>" `
+  -SkipSign
 ```
 
-Local installation requires signing. Pass either `-CertificateThumbprint` for a certificate in the local cert store, or `-PfxPath` and `-PfxPassword` for a PFX.
+For local signed MSIX testing, override the package identity to match the local development certificate subject:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 `
+  -Version 0.1.0.0 `
+  -PackageName "CursorCue.Windows" `
+  -Publisher "CN=CursorCue Development" `
+  -PublisherDisplayName "CursorCue" `
+  -CertificateThumbprint "<local CursorCue development cert thumbprint>" `
+  -NoTimestamp
+```
+
+Local installation requires signing. Pass either `-CertificateThumbprint` for a certificate in the local cert store, or `-PfxPath` and `-PfxPassword` for a PFX. The signing certificate subject must exactly match the manifest publisher.
 
 For local-only test certificates in offline/restricted-network environments, add `-NoTimestamp`. Do not use `-NoTimestamp` for real release signing.
 

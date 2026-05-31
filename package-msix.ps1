@@ -17,6 +17,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($Version -notmatch '^\d+\.\d+\.\d+\.0$') {
+    throw "Microsoft Store MSIX packages require a four-part version with the revision set to 0, for example 0.1.5.0. Current value: $Version"
+}
+
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $OutRoot = Join-Path $Root "out\msix"
 $LayoutDir = Join-Path $OutRoot "layout"

@@ -6,6 +6,12 @@ CursorCue is intentionally small: it lives in the notification area, draws click
 
 CursorCue is an early Windows app built from the behavior and visual timing of ClickLight for macOS, then cleaned up into a Windows-first repository. It is an independent rewrite, not an official ClickLight port. Maintenance is best-effort.
 
+## Demo
+
+[![CursorCue demo](assets/demo/cursorcue-demo-poster.png)](assets/demo/cursorcue-demo.mp4)
+
+Click the preview to watch CursorCue in action.
+
 ## Origin and Credits
 
 CursorCue began from a fork of Aurora Scharff's MIT-licensed ClickLight for macOS: https://github.com/aurorascharff/ClickLight
@@ -119,9 +125,17 @@ Create an MSIX after installing the Windows SDK/MSIX packaging tools:
 powershell -ExecutionPolicy Bypass -File .\package-msix.ps1 -Version 0.1.0.0 -SkipSign
 ```
 
+By default, `package-msix.ps1` uses a local development package identity. For Microsoft Store submissions, pass the package identity values from Partner Center:
+
+```text
+Package/Identity/Name: <Partner Center package name>
+Package/Identity/Publisher: <Partner Center publisher>
+Package/Properties/PublisherDisplayName: <Publisher display name>
+```
+
 `package-msix.ps1` searches the Windows SDK install folders, so `makeappx.exe` and `signtool.exe` do not have to be on `PATH`.
 
-Use Partner Center package identity and publisher values for Store builds. Local install testing requires signing the package with a trusted or developer certificate whose subject matches the manifest publisher. If you change the default publisher, create a matching test certificate before signing. Then install it from a normal user PowerShell or Explorer:
+Local install testing requires signing the package with a trusted or developer certificate whose subject matches the manifest publisher. For local test packages, override the identity to match your dev certificate. Then install it from a normal user PowerShell or Explorer:
 
 ```powershell
 Add-AppxPackage -Path .\out\msix\CursorCue_0.1.0.0_x64.msix
