@@ -12,7 +12,8 @@ CursorCue is an early Windows app built from the behavior and visual timing of C
 
 ## Demo
 
-Demo video coming soon.
+https://github.com/user-attachments/assets/4c8edddc-1bc5-496b-8b85-a3704f8484cc
+
 
 ## Origin and Credits
 
