@@ -10,6 +10,12 @@ CursorCue is intentionally small: it lives in the notification area, draws click
 
 CursorCue is an early Windows app built from the behavior and visual timing of ClickLight for macOS, then cleaned up into a Windows-first repository. It is an independent rewrite, not an official ClickLight port. Maintenance is best-effort.
 
+<p>
+  <a href="https://get.microsoft.com/installer/download/9pd8w85g4ms1?referrer=appbadge" target="_self">
+    <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Get it from Microsoft">
+  </a>
+</p>
+
 ## Demo
 
 https://github.com/user-attachments/assets/4c8edddc-1bc5-496b-8b85-a3704f8484cc
